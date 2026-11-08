@@ -1,0 +1,7 @@
+{% extends 'app.html' if user else 'auth_layout.html' %}{% import '_ui.html' as ui with context %}{% set auth_icon = 'info' %}{% set page_title = heading %}
+{% block auth_title %}{{heading}}{% endblock %}
+{% block auth_sub %}{{message}}{% endblock %}
+{% block auth_body %}<a class="btn primary lg block" href="{{next_url}}">{{'Log in' if next_url=='/login' else 'Continue'}}</a>{% endblock %}
+{% block page %}
+<section class="card" style="max-width:520px;margin:32px auto 0"><div class="empty" style="padding:40px 28px">{{ ui.icon('info') }}<strong style="font-size:18px">{{heading}}</strong><p>{{message}}</p><a class="btn primary" href="{{next_url}}">Continue</a></div></section>
+{% endblock %}

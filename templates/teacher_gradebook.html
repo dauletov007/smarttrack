@@ -1,0 +1,16 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'gradebook' %}{% set page_title = 'Gradebook' %}
+{% set open_courses = courses|selectattr('status','equalto','active')|rejectattr('semester_status','equalto','closed')|list %}
+{% block page %}
+<div class="page-head"><div><h1 class="page-title">Gradebook</h1><p class="page-sub">Pick a course to enter or correct grades.</p></div></div>
+<div class="grid main-side">
+  <section class="card"><div class="card-head"><h2 class="card-title">Courses</h2></div>
+    {% if courses %}<div class="table-wrap"><table class="table"><thead><tr><th>Course</th><th>Group</th><th>Semester</th><th class="num">Students</th><th class="num">Grades</th><th class="num"><span class="sr-only">Open</span></th></tr></thead><tbody>
+      {% for o in courses %}{% set closed = o.status!='active' or o.semester_status=='closed' %}<tr class="{{'muted' if closed}}"><td><span class="strong">{{o.name}}</span> <span class="code">{{o.code}}</span></td><td>{{o.group_code_snapshot}}</td><td>{{o.label}} {% if closed %}{{ ui.status('closed','read-only') }}{% endif %}</td><td class="num">{{o.students}}</td><td class="num">{{o.grade_count}}</td>
+        <td class="num"><a class="btn sm {{'' if closed else 'primary'}}" href="/academic/offering/{{o.id}}?tab=grades">{{'View' if closed else 'Open gradebook'}}</a></td></tr>{% endfor %}</tbody></table></div>
+    {% else %}{{ ui.empty('No courses assigned', '', 'book') }}{% endif %}</section>
+  <section class="card"><div class="card-head"><h2 class="card-title">Recently graded</h2></div>
+    {% if recent %}<ul class="list">{% for g in recent %}<li><div class="grow"><div class="title">{{g.student_name}}</div><div class="desc"><a href="/academic/offering/{{g.offering_id}}?assessment={{g.assessment_id}}#grading">{{g.title}}</a> · {{g.code}} {{g.group_code_snapshot}}</div></div><span class="score-val">{{g.score|num}}<span class="score-max"> / {{g.max_score|num}}</span></span></li>{% endfor %}</ul>
+    {% else %}{{ ui.empty('No grades yet', '', 'table') }}{% endif %}</section>
+</div>
+{% endblock %}

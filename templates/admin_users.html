@@ -1,0 +1,52 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'users' %}{% set page_title = 'Users' %}
+{% macro admin_form(person, action, label, icon_name, cls='menu-item', confirm='', safe=False) -%}
+<form method="post" action="/admin/action" {% if confirm %}data-confirm="{{confirm}}" data-confirm-label="{{label}}" {% if safe %}data-confirm-safe{% endif %}{% endif %}>{{ ui.csrf_input() }}<input type="hidden" name="target_id" value="{{person.id}}"><input type="hidden" name="action" value="{{action}}"><input type="hidden" name="next" value="{{ request.url.path ~ ('?' ~ request.url.query if request.url.query else '') }}"><button class="{{cls}}">{{ ui.icon(icon_name) }}{{label}}</button></form>
+{%- endmacro %}
+{% block page %}
+<div class="page-head">
+  <div><h1 class="page-title">Users</h1><p class="page-sub">{{total}} accounts</p></div>
+  <div class="page-meta">{% for r,ic in [('student','graduation'),('teacher','teacher'),('parent','heart'),('admin','shield')] %}<a class="chip" href="/admin/users?role={{r}}">{{ ui.icon(ic) }}{{r|capitalize}}s <strong>{{stats.get(r,0)}}</strong></a>{% endfor %}</div>
+</div>
+<section class="card">
+  <form class="toolbar" method="get" action="/admin/users">
+    <label class="search">{{ ui.icon('search') }}<span class="sr-only">Search users</span><input name="q" value="{{f.q}}" placeholder="Search name or email"></label>
+    <select name="role" aria-label="Role" data-autosubmit><option value="">All roles</option>{% for r in ['student','teacher','parent','admin'] %}<option value="{{r}}" {{'selected' if f.role==r}}>{{r|capitalize}}</option>{% endfor %}</select>
+    <select name="status" aria-label="Status" data-autosubmit><option value="">Any status</option>{% for v,l in [('active','Active'),('pending','Teacher awaiting approval'),('unverified','Email unverified'),('blocked','Blocked')] %}<option value="{{v}}" {{'selected' if f.status==v}}>{{l}}</option>{% endfor %}</select>
+    <button class="btn sm">Apply</button>{% if f.q or f.role or f.status %}<a class="btn ghost sm" href="/admin/users">{{ ui.icon('x') }}Clear</a>{% endif %}
+    <span class="grow"></span><span class="small muted">{{users|length}} shown</span>
+  </form>
+  {% if users %}<div class="table-wrap"><table class="table">
+    <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Joined</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for person in users %}<tr class="userline {{'muted' if person.blocked}}">
+      <td><div class="row"><span class="avatar">{{ ui.initials(person.full_name) }}</span><span><span class="strong">{{person.full_name}}</span><span class="sub">{{person.email}}</span></span></div></td>
+      <td>{{ ui.status('none', person.role) }}</td>
+      <td><div class="row" style="gap:4px">{% if person.blocked %}{{ ui.status('blocked') }}{% elif not person.verified %}{{ ui.status('unverified') }}{% else %}{{ ui.status('verified') }}{% endif %}
+        {% if person.role=='teacher' and person.teacher_status!='approved' %}{{ ui.status(person.teacher_status) }}{% elif person.role=='teacher' %}{{ ui.status('approved','teacher approved') }}{% endif %}</div></td>
+      <td class="small muted nowrap">{{person.created_at|dt}}</td>
+      <td><div class="actions">{% if person.role!='admin' %}
+        <details class="menu"><summary class="btn ghost sm" aria-label="Actions for {{person.full_name}}">Actions {{ ui.icon('more') }}</summary><div class="menu-pop">
+          {% if person.role=='teacher' %}
+            {% if person.verified and person.teacher_status!='approved' %}{{ admin_form(person,'approve_teacher','Approve teacher','check','menu-item','Approve ' ~ person.full_name ~ ' as a teacher? Check their identity first.', True) }}{% endif %}
+            {% if person.verified %}{{ admin_form(person,'issue_teacher','Issue approval code','key') }}{% endif %}
+            {% if person.teacher_status=='approved' %}{{ admin_form(person,'revoke_teacher','Revoke teacher access','ban','menu-item danger','Revoke teacher access for ' ~ person.full_name ~ '? They lose access to their courses until approved again.') }}{% endif %}
+            {% if person.teacher_status!='rejected' %}{{ admin_form(person,'reject_teacher','Reject teacher','x','menu-item danger','Reject ' ~ person.full_name ~ ' as a teacher?') }}{% endif %}
+            <div class="menu-sep"></div>
+          {% endif %}
+          <button class="menu-item" type="button" data-open="dlg-role" data-set-target_id="{{person.id}}" data-set-who="{{person.full_name}} ({{person.role}})">{{ ui.icon('swap') }}Change role</button>
+          {% if person.blocked %}{{ admin_form(person,'unblock','Unblock','lock-open') }}
+          {% else %}{{ admin_form(person,'block','Block account','lock','menu-item danger','Block ' ~ person.full_name ~ '? They are signed out immediately.') }}{% endif %}
+        </div></details>{% else %}<span class="small muted">Main admin</span>{% endif %}</div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No users match', 'Try a different search or filter.', 'search', ('Clear filters','/admin/users')) }}{% endif %}
+</section>
+{% endblock %}
+{% block dialogs %}
+<dialog class="modal" id="dlg-role" aria-labelledby="dlg-role-title">
+  <form method="post" action="/admin/action" data-confirm="Change this user's role? Their parent links are removed and they are signed out." data-confirm-label="Change role">{{ ui.csrf_input() }}<input type="hidden" name="target_id" value=""><input type="hidden" name="action" value="change_role"><input type="hidden" name="next" value="/admin/users">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-role-title">Change role</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <p class="modal-sub" data-text="who"></p>
+    <div class="modal-body form"><div class="field"><label for="ro-role">New role<span class="req">*</span></label><select id="ro-role" name="role" required><option value="student">Student</option><option value="parent">Parent</option></select><span class="hint">Accounts can be changed to Student or Parent.</span></div></div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Change role</button></div>
+  </form>
+</dialog>
+{% endblock %}

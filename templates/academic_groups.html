@@ -1,0 +1,127 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'groups' %}{% set page_title = 'Groups' %}
+{% block crumbs %}{% if selected %}<a href="/academic/groups">Groups</a><span class="sep">/</span><span class="here">{{selected.group_code}}</span>{% else %}<span class="here">Groups</span>{% endif %}{% endblock %}
+{% block page %}
+{% if selected %}
+{% set group_members = members|selectattr('group_id','equalto',selected.id)|list %}
+<div class="page-head">
+  <div><a class="btn ghost sm" href="/academic/groups" style="margin-left:-8px;margin-bottom:6px">{{ ui.icon('back') }}All groups</a>
+    <h1 class="page-title">{{selected.group_code}}</h1>
+    <div class="page-meta"><span class="chip">{{ ui.icon('users') }}<strong>{{selected.members}}</strong> students</span><a class="chip" href="/academic/courses?group={{selected.id}}">{{ ui.icon('book') }}<strong>{{selected.courses}}</strong> active courses</a></div></div>
+  <div class="page-actions">
+    <button class="btn" type="button" data-open="dlg-import" data-set-group_id="{{selected.id}}" data-set-group="{{selected.group_code}}">{{ ui.icon('upload') }}Import CSV/Excel</button>
+    <button class="btn primary" type="button" data-open="dlg-add" data-set-group_id="{{selected.id}}" data-set-group="{{selected.group_code}}">{{ ui.icon('plus') }}Add student</button>
+    <details class="menu"><summary class="btn icon-only" aria-label="More group actions">{{ ui.icon('more') }}</summary><div class="menu-pop">
+      <form method="post" action="/academic/group/delete" data-confirm="Delete group {{selected.group_code}}? Students leave the group and its courses are archived. All grades are kept." data-confirm-label="Delete group">{{ ui.csrf_input() }}<input type="hidden" name="group_id" value="{{selected.id}}"><button class="menu-item danger">{{ ui.icon('trash') }}Delete group</button></form>
+    </div></details>
+  </div>
+</div>
+<section class="card">
+  <div class="toolbar"><label class="search">{{ ui.icon('search') }}<span class="sr-only">Search students</span><input placeholder="Search students" data-filter="#members-table"></label><span class="grow"></span><span class="small muted">{{group_members|length}} enrolled</span></div>
+  {% if group_members %}<div class="table-wrap"><table class="table" id="members-table">
+    <thead><tr><th>Student</th><th>Email</th><th>Enrolled</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for m in group_members %}<tr data-row><td><div class="row"><span class="avatar">{{ ui.initials(m.full_name) }}</span><span class="strong">{{m.full_name}}</span></div></td><td class="muted">{{m.email}}</td><td class="small muted">{{m.since_at|dt}}</td>
+      <td><div class="actions">
+        {% if groups|length > 1 %}<button class="btn sm" type="button" data-open="dlg-transfer" data-set-student_id="{{m.student_id}}" data-set-student="{{m.full_name}}" data-set-from="{{selected.group_code}}">{{ ui.icon('swap') }}Transfer</button>{% endif %}
+        <form method="post" action="/academic/group/member/remove" data-confirm="Remove {{m.full_name}} from {{selected.group_code}}? Their grades are kept." data-confirm-label="Remove">{{ ui.csrf_input() }}<input type="hidden" name="student_id" value="{{m.student_id}}"><button class="btn ghost sm danger">Remove</button></form>
+      </div></td></tr>{% endfor %}
+      <tr data-no-match hidden><td colspan="4" class="empty-cell">{{ ui.empty('No matching students', '', 'search') }}</td></tr></tbody></table></div>
+  {% else %}{{ ui.empty('No students in this group', 'Add registered students one by one or import a CSV/Excel list of emails.', 'users', 'Add student', 'dlg-add') }}{% endif %}
+</section>
+
+{% else %}
+<div class="page-head">
+  <div><h1 class="page-title">Groups</h1><p class="page-sub">One current group per student. Transfers keep earlier grades.</p></div>
+  <div class="page-actions"><button class="btn primary" type="button" data-open="dlg-group">{{ ui.icon('plus') }}Create group</button></div>
+</div>
+<nav class="tabs" aria-label="Group sections">
+  <a class="tab {{'active' if tab=='groups'}}" href="/academic/groups">{{ ui.icon('users') }}Groups <span class="pill-count">{{groups|length}}</span></a>
+  <a class="tab {{'active' if tab=='requests'}}" href="/academic/groups?tab=requests">{{ ui.icon('inbox') }}Join requests <span class="pill-count">{{requests|length}}</span></a>
+  <a class="tab {{'active' if tab=='transfers'}}" href="/academic/groups?tab=transfers">{{ ui.icon('swap') }}Transfers</a>
+</nav>
+{% if tab=='groups' %}
+<section class="card">
+  <div class="toolbar"><label class="search">{{ ui.icon('search') }}<span class="sr-only">Search groups</span><input placeholder="Search groups" data-filter="#groups-table"></label><span class="grow"></span>
+    {% set unassigned = students|rejectattr('group_code')|list %}{% if unassigned %}<span class="badge warn plain">{{unassigned|length}} student{{'s' if unassigned|length != 1}} without a group</span>{% endif %}</div>
+  {% if groups %}<div class="table-wrap"><table class="table" id="groups-table">
+    <thead><tr><th>Group</th><th class="num">Students</th><th class="num">Active courses</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for g in groups %}<tr data-row><td><a class="rowlink" href="/academic/groups?g={{g.id}}">{{g.group_code}}</a></td><td class="num">{{g.members}}</td><td class="num">{{g.courses}}</td>
+      <td><div class="actions">
+        <button class="btn ghost sm" type="button" data-open="dlg-add" data-set-group_id="{{g.id}}" data-set-group="{{g.group_code}}">{{ ui.icon('plus') }}Add students</button>
+        <button class="btn ghost sm" type="button" data-open="dlg-import" data-set-group_id="{{g.id}}" data-set-group="{{g.group_code}}">{{ ui.icon('upload') }}Import</button>
+        <a class="btn sm" href="/academic/groups?g={{g.id}}">Open {{ ui.icon('chevron') }}</a>
+      </div></td></tr>{% endfor %}
+      <tr data-no-match hidden><td colspan="4" class="empty-cell">{{ ui.empty('No matching groups', '', 'search') }}</td></tr></tbody></table></div>
+  {% else %}{{ ui.empty('No groups yet', 'Create a group such as SE-2401, then add students.', 'users', 'Create group', 'dlg-group') }}{% endif %}
+</section>
+{% elif tab=='requests' %}
+<section class="card" id="requests">
+  {% if requests %}
+  <form id="bulk-requests" method="post" action="/academic/group/requests/review">{{ ui.csrf_input() }}</form>
+  <div class="toolbar"><span class="small muted grow">Select requests to review them together.</span>
+    <button class="btn sm" form="bulk-requests" name="decision" value="rejected">{{ ui.icon('x') }}Reject selected</button>
+    <button class="btn primary sm" form="bulk-requests" name="decision" value="approved">{{ ui.icon('check') }}Approve selected</button></div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th class="min"><input type="checkbox" aria-label="Select all requests" data-check-all=".rq"></th><th>Student</th><th>Requested group</th><th>Current group</th><th>Sent</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for r in requests %}<tr><td class="min"><input type="checkbox" class="rq" name="ids" value="{{r.id}}" form="bulk-requests" aria-label="Select {{r.full_name}}"></td>
+      <td><span class="strong">{{r.full_name}}</span><span class="sub">{{r.email}}</span></td><td>{{r.group_code}}</td><td>{{r.current_group or '—'}}</td><td class="small muted">{{r.created_at|dt}}</td>
+      <td><div class="actions">
+        <form method="post" action="/academic/group/requests/review">{{ ui.csrf_input() }}<input type="hidden" name="ids" value="{{r.id}}"><input type="hidden" name="decision" value="rejected"><button class="btn ghost sm">Reject</button></form>
+        <form method="post" action="/academic/group/requests/review">{{ ui.csrf_input() }}<input type="hidden" name="ids" value="{{r.id}}"><input type="hidden" name="decision" value="approved"><button class="btn primary sm">Approve</button></form>
+      </div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No pending requests', 'Students can request to join a group from their My Group page.', 'inbox') }}{% endif %}
+</section>
+{% else %}
+<section class="card">
+  {% if transfers %}<div class="table-wrap"><table class="table">
+    <thead><tr><th>Student</th><th>From</th><th>To</th><th>Date</th></tr></thead>
+    <tbody>{% for t in transfers %}<tr><td class="strong">{{t.full_name}}</td><td>{{t.old_code}}</td><td>{{t.new_code or '—'}}{% if not t.new_code %} <span class="small muted">(removed)</span>{% endif %}</td><td class="small muted">{{t.until_at|dt}}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No transfers yet', 'Transfers and removals appear here. Grades always stay with the student.', 'swap') }}{% endif %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="modal" id="dlg-group" aria-labelledby="dlg-group-title">
+  <form method="post" action="/academic/group" id="form-group" data-persist>{{ ui.csrf_input() }}
+    <div class="modal-head"><h2 class="modal-title" id="dlg-group-title">Create group</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form"><div class="field"><label for="gr-code">Group code<span class="req">*</span></label><input id="gr-code" name="group_code" placeholder="SE-2401" maxlength="32" required><span class="hint">Letters, digits, - or _</span></div></div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Create group</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="dlg-add" aria-labelledby="dlg-add-title">
+  <form method="post" action="/academic/group/member" id="form-add" data-persist>{{ ui.csrf_input() }}<input type="hidden" name="group_id" value="{{selected.id if selected else ''}}">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-add-title">Add student to <span data-text="group">{{selected.group_code if selected else 'group'}}</span></h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      {% if students %}<div class="field"><label for="ad-student">Student<span class="req">*</span></label><select id="ad-student" name="student_id" required><option value="">Select student</option>
+        <optgroup label="Without a group">{% for s in students if not s.group_code %}<option value="{{s.id}}">{{s.full_name}} — {{s.email}}</option>{% endfor %}</optgroup>
+        <optgroup label="Transfer from another group">{% for s in students if s.group_code %}<option value="{{s.id}}">{{s.full_name}} ({{s.group_code}})</option>{% endfor %}</optgroup></select>
+        <span class="hint">Choosing a student from another group transfers them. Their grades are kept.</span></div>
+      {% else %}{{ ui.empty('No registered students', 'Students must register with a Student account first.', 'user') }}{% endif %}
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" {{'disabled' if not students}}>Add student</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="dlg-import" aria-labelledby="dlg-import-title">
+  <form method="post" action="/academic/group/import" enctype="multipart/form-data">{{ ui.csrf_input() }}<input type="hidden" name="group_id" value="{{selected.id if selected else ''}}">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-import-title">Import into <span data-text="group">{{selected.group_code if selected else 'group'}}</span></h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      <div class="field"><label for="im-file">CSV or Excel (.xlsx) file<span class="req">*</span></label><input id="im-file" name="upload" type="file" accept=".csv,.xlsx" required>
+        <span class="hint">Registered student emails in the first column, up to 500 rows. If any email is invalid, nothing is imported.</span></div>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">{{ ui.icon('upload') }}Import</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="dlg-transfer" aria-labelledby="dlg-transfer-title">
+  <form method="post" action="/academic/group/member" id="form-transfer" data-persist>{{ ui.csrf_input() }}<input type="hidden" name="student_id" value="">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-transfer-title">Transfer student</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      <dl class="modal-summary"><dt>Student</dt><dd data-text="student">—</dd><dt>Current group</dt><dd data-text="from">—</dd></dl>
+      <div class="field"><label for="tr-group">New group<span class="req">*</span></label><select id="tr-group" name="group_id" required><option value="">Select group</option>{% for g in groups if not selected or g.id!=selected.id %}<option value="{{g.id}}">{{g.group_code}}</option>{% endfor %}</select></div>
+      <p class="hint">Earlier grades and course history stay with the student.</p>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Transfer</button></div>
+  </form>
+</dialog>
+{% endblock %}

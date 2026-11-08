@@ -1,0 +1,164 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'courses' %}{% set page_title = 'Courses' %}
+{% set active_rows = rows|selectattr('status','equalto','active')|rejectattr('archived_at')|list %}
+{% set archived_rows = rows|reject('in', active_rows)|list %}
+{% set archived_subjects = subjects_all|selectattr('archived_at')|list %}
+{% block page %}
+<div class="page-head">
+  <div><h1 class="page-title">Courses</h1><p class="page-sub">Subject + semester + group + teacher</p></div>
+  <div class="page-actions">
+    <button class="btn" type="button" data-open="dlg-subject">{{ ui.icon('plus') }}New subject</button>
+    <button class="btn primary" type="button" data-open="dlg-assign">{{ ui.icon('plus') }}Assign course</button>
+  </div>
+</div>
+<nav class="tabs" aria-label="Course sections">
+  <a class="tab {{'active' if tab=='courses'}}" href="/academic/courses">{{ ui.icon('book') }}Courses <span class="pill-count">{{active_rows|length}}</span></a>
+  <a class="tab {{'active' if tab=='subjects'}}" href="/academic/courses?tab=subjects">{{ ui.icon('layers') }}Subjects <span class="pill-count">{{subjects_all|rejectattr('archived_at')|list|length}}</span></a>
+  <a class="tab {{'active' if tab=='archived'}}" href="/academic/courses?tab=archived">{{ ui.icon('archive') }}Archived <span class="pill-count">{{archived_rows|length + archived_subjects|length}}</span></a>
+</nav>
+
+{% if tab=='courses' %}
+<section class="card">
+  <form class="toolbar" method="get" action="/academic/courses">
+    <label class="search">{{ ui.icon('search') }}<span class="sr-only">Search courses</span><input name="q" value="{{f.q}}" placeholder="Search subject, code or group"></label>
+    <select name="semester" aria-label="Semester" data-autosubmit><option value="0">All semesters</option>{% for s in semesters %}<option value="{{s.id}}" {{'selected' if f.semester==s.id}}>{{s.label}}</option>{% endfor %}</select>
+    <select name="group" aria-label="Group" data-autosubmit><option value="0">All groups</option>{% for g in groups %}<option value="{{g.id}}" {{'selected' if f.group==g.id}}>{{g.group_code}}</option>{% endfor %}</select>
+    <select name="teacher" aria-label="Teacher" data-autosubmit><option value="0">All teachers</option>{% for t in teachers %}<option value="{{t.id}}" {{'selected' if f.teacher==t.id}}>{{t.full_name}}</option>{% endfor %}</select>
+    <select name="status" aria-label="Semester status" data-autosubmit><option value="">Any status</option>{% for v,l in [('active','Open'),('draft','Draft'),('closed','Closed')] %}<option value="{{v}}" {{'selected' if f.status==v}}>{{l}}</option>{% endfor %}</select>
+    <button class="btn sm" type="submit">Apply</button>
+    {% if f.q or f.semester or f.group or f.teacher or f.status %}<a class="btn ghost sm" href="/academic/courses">{{ ui.icon('x') }}Clear</a>{% endif %}
+  </form>
+  {% if active_rows %}<div class="table-wrap"><table class="table">
+    <thead><tr><th>Subject</th><th>Code</th><th>Group</th><th>Semester</th><th>Teacher</th><th class="num">Students</th><th>Status</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for o in active_rows %}<tr>
+      <td><a class="rowlink" href="/academic/offering/{{o.id}}">{{o.name}}</a></td>
+      <td><span class="code">{{o.code}}</span></td>
+      <td>{{o.group_code_snapshot}}</td>
+      <td>{{o.label}}</td>
+      <td>{{o.teacher_name or '—'}}{% if o.teacher_name and not o.teacher_ok %} {{ ui.status('rejected','not approved') }}{% endif %}</td>
+      <td class="num">{{o.student_count}}</td>
+      <td>{{ ui.semester_badge(o.semester_status) }}</td>
+      <td><div class="actions">
+        <a class="btn sm" href="/academic/offering/{{o.id}}?tab=grades">{{ ui.icon('table') }}Gradebook</a>
+        <details class="menu"><summary class="btn ghost sm icon-only" aria-label="More actions for {{o.code}} {{o.group_code_snapshot}}">{{ ui.icon('more') }}</summary>
+          <div class="menu-pop">
+            <a class="menu-item" href="/academic/offering/{{o.id}}">{{ ui.icon('book') }}Open course</a>
+            <button class="menu-item" type="button" data-open="dlg-teacher" data-set-offering_id="{{o.id}}" data-set-course="{{o.code}} · {{o.group_code_snapshot}} · {{o.label}}" data-set-current="{{o.teacher_name or '—'}}">{{ ui.icon('swap') }}Replace teacher</button>
+            <div class="menu-sep"></div>
+            <form method="post" action="/academic/offering/status" data-confirm="Archive {{o.code}} for {{o.group_code_snapshot}}? Grades stay in history and become read-only." data-confirm-label="Archive">{{ ui.csrf_input() }}<input type="hidden" name="offering_id" value="{{o.id}}"><input type="hidden" name="status" value="archived"><button class="menu-item danger">{{ ui.icon('archive') }}Archive course</button></form>
+          </div></details>
+      </div></td></tr>{% endfor %}</tbody></table></div>
+  {% elif f.q or f.semester or f.group or f.teacher or f.status %}{{ ui.empty('No matching courses', 'Try a different search or clear the filters.', 'search', ('Clear filters','/academic/courses')) }}
+  {% else %}{{ ui.empty('No courses yet', 'Assign a subject to a group for a semester and teacher.', 'book', 'Assign course', 'dlg-assign') }}{% endif %}
+</section>
+
+{% elif tab=='subjects' %}
+<section class="card">
+  <form class="toolbar" method="get" action="/academic/courses">
+    <input type="hidden" name="tab" value="subjects"><input type="hidden" name="sstatus" value="active">
+    <label class="search">{{ ui.icon('search') }}<span class="sr-only">Search subjects</span><input name="sq" value="{{f.sq}}" placeholder="Search subjects" data-filter="#subjects-table"></label>
+    <span class="grow"></span><button class="btn sm" type="button" data-open="dlg-subject">{{ ui.icon('plus') }}New subject</button>
+  </form>
+  {% set list_subjects = subjects|rejectattr('archived_at')|list %}
+  {% if list_subjects %}<div class="table-wrap" id="subjects"><table class="table" id="subjects-table">
+    <thead><tr><th>Code</th><th>Subject</th><th>Description</th><th class="num">Courses</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for s in list_subjects %}{% set n = rows|selectattr('code','equalto',s.code)|list|length %}<tr data-row>
+      <td><span class="code">{{s.code}}</span></td><td class="strong">{{s.name}}</td><td class="muted small">{{s.description|truncate(70) or '—'}}</td><td class="num">{{n}}</td>
+      <td><div class="actions">
+        <button class="btn sm" type="button" data-open="dlg-edit-subject" data-set-subject_id="{{s.id}}" data-set-code="{{s.code}}" data-set-name="{{s.name}}" data-set-description="{{s.description}}">{{ ui.icon('edit') }}Edit</button>
+        <form method="post" action="/academic/subject/archive" data-confirm="Archive {{s.code}}? It can no longer be assigned. Existing grades are kept." data-confirm-label="Archive">{{ ui.csrf_input() }}<input type="hidden" name="subject_id" value="{{s.id}}"><input type="hidden" name="restore" value="false"><button class="btn ghost sm">{{ ui.icon('archive') }}Archive</button></form>
+      </div></td></tr>{% endfor %}
+      <tr data-no-match hidden><td colspan="5" class="empty-cell">{{ ui.empty('No matching subjects', '', 'search') }}</td></tr></tbody></table></div>
+  {% elif f.sq %}{{ ui.empty('No matching subjects', 'Try a different search.', 'search', ('Clear search','/academic/courses?tab=subjects')) }}
+  {% else %}<div id="subjects">{{ ui.empty('No subjects yet', 'Create a subject such as MATH101 — Calculus I. One subject can be reused in many semesters.', 'layers', 'New subject', 'dlg-subject') }}</div>{% endif %}
+</section>
+
+{% else %}
+<div class="stack">
+<section class="card">
+  <div class="card-head"><h2 class="card-title">Archived courses <span class="count">{{archived_rows|length}}</span></h2></div>
+  {% if archived_rows %}<div class="table-wrap"><table class="table">
+    <thead><tr><th>Subject</th><th>Group</th><th>Semester</th><th>Teacher</th><th>Reason</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for o in archived_rows %}<tr class="muted"><td><a class="rowlink" href="/academic/offering/{{o.id}}">{{o.name}}</a> <span class="code">{{o.code}}</span></td><td>{{o.group_code_snapshot}}{% if o.group_deleted_at %} {{ ui.status('deleted','group deleted') }}{% endif %}</td><td>{{o.label}}</td><td>{{o.teacher_name or '—'}}</td>
+      <td>{% if o.status=='archived' %}{{ ui.status('archived','course archived') }}{% else %}{{ ui.status('archived','subject archived') }}{% endif %}</td>
+      <td><div class="actions"><a class="btn ghost sm" href="/academic/offering/{{o.id}}?tab=grades">{{ ui.icon('table') }}Grades</a>
+        {% if o.status=='archived' and not o.group_deleted_at %}<form method="post" action="/academic/offering/status">{{ ui.csrf_input() }}<input type="hidden" name="offering_id" value="{{o.id}}"><input type="hidden" name="status" value="active"><button class="btn sm">{{ ui.icon('restore') }}Restore</button></form>{% endif %}</div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No archived courses', '', 'archive') }}{% endif %}
+</section>
+<section class="card">
+  <div class="card-head"><h2 class="card-title">Archived subjects <span class="count">{{archived_subjects|length}}</span></h2></div>
+  {% if archived_subjects %}<div class="table-wrap"><table class="table">
+    <thead><tr><th>Code</th><th>Subject</th><th>Archived</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for s in archived_subjects %}<tr class="muted"><td><span class="code">{{s.code}}</span></td><td>{{s.name}}</td><td class="small">{{s.archived_at|dt}}</td>
+      <td><div class="actions"><form method="post" action="/academic/subject/archive">{{ ui.csrf_input() }}<input type="hidden" name="subject_id" value="{{s.id}}"><input type="hidden" name="restore" value="true"><button class="btn sm">{{ ui.icon('restore') }}Restore</button></form></div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No archived subjects', '', 'archive') }}{% endif %}
+</section>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block dialogs %}
+{% set d = subject_draft or {} %}
+<dialog class="modal" id="dlg-assign" aria-labelledby="dlg-assign-title" {% if request and request.query_params.get('assign') %}data-autoopen{% endif %}>
+  <form method="post" action="/academic/offering" id="form-assign" data-persist>{{ ui.csrf_input() }}
+    <div class="modal-head"><h2 class="modal-title" id="dlg-assign-title">Assign course</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <p class="modal-sub">Students currently in the group get the course automatically.</p>
+    <div class="modal-body form">
+      {% if missing %}<div class="banner" style="margin:0">{{ ui.icon('info') }}<span>Missing:
+        {% for m in missing %}{% if m=='subject' %}<a class="textlink" href="/academic/courses?tab=subjects">a subject</a>{% elif m=='open semester' %}<a class="textlink" href="/academic/semesters">an open semester</a>{% elif m=='group' %}<a class="textlink" href="/academic/groups">a group</a>{% else %}<a class="textlink" href="/academic/teachers#pending">an approved teacher</a>{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</span></div>{% endif %}
+      <div class="field"><label for="as-subject">Subject<span class="req">*</span></label>
+        <select id="as-subject" name="subject_id" required {{'disabled' if 'subject' in missing}}><option value="">Select subject</option>{% for s in subjects_all if not s.archived_at %}<option value="{{s.id}}">{{s.code}} — {{s.name}}</option>{% endfor %}</select></div>
+      <div class="field"><label for="as-semester">Semester<span class="req">*</span></label>
+        <select id="as-semester" name="semester_id" required {{'disabled' if 'open semester' in missing}}><option value="">Select semester</option>{% for s in semesters if s.status!='closed' %}<option value="{{s.id}}" {{'selected' if s.is_current}}>{{s.label}}{{' (draft)' if s.status=='draft'}}</option>{% endfor %}</select></div>
+      <div class="form-row">
+        <div class="field"><label for="as-group">Group<span class="req">*</span></label>
+          <select id="as-group" name="group_id" required {{'disabled' if 'group' in missing}}><option value="">Select group</option>{% for g in groups %}<option value="{{g.id}}">{{g.group_code}}</option>{% endfor %}</select></div>
+        <div class="field"><label for="as-teacher">Teacher<span class="req">*</span></label>
+          <select id="as-teacher" name="teacher_id" required {{'disabled' if 'approved teacher' in missing}}><option value="">Select teacher</option>{% for t in teachers %}<option value="{{t.id}}">{{t.full_name}}</option>{% endfor %}</select></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" {{'disabled' if missing}}>Assign Course</button></div>
+  </form>
+</dialog>
+
+<dialog class="modal" id="dlg-subject" aria-labelledby="dlg-subject-title" {% if d and not d.id|default(0) %}data-autoopen{% endif %}>
+  <form method="post" action="/academic/subject" id="form-subject">{{ ui.csrf_input() }}<input type="hidden" name="subject_id" value="0">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-subject-title">New subject</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      <div class="form-row">
+        <div class="field"><label for="sb-code">Code<span class="req">*</span></label><input id="sb-code" name="code" placeholder="MATH101" maxlength="32" required value="{{d.code|default('') if not d.id|default(0)}}"><span class="hint">Letters, digits, - _ . +</span></div>
+        <div class="field"><label for="sb-name">Name<span class="req">*</span></label><input id="sb-name" name="name" placeholder="Calculus I" maxlength="120" required value="{{d.name|default('') if not d.id|default(0)}}"></div>
+      </div>
+      <div class="field"><label for="sb-desc">Description <span class="opt">(optional)</span></label><textarea id="sb-desc" name="description" maxlength="2000" rows="3">{{d.description|default('') if not d.id|default(0)}}</textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Create subject</button></div>
+  </form>
+</dialog>
+
+<dialog class="modal" id="dlg-edit-subject" aria-labelledby="dlg-edit-title" {% if d.id|default(0) %}data-autoopen{% endif %}>
+  <form method="post" action="/academic/subject" id="form-edit-subject">{{ ui.csrf_input() }}<input type="hidden" name="subject_id" value="{{d.id|default(0)}}">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-edit-title">Edit subject</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      <div class="form-row">
+        <div class="field"><label for="es-code">Code<span class="req">*</span></label><input id="es-code" name="code" maxlength="32" required value="{{d.code|default('') if d.id|default(0)}}"></div>
+        <div class="field"><label for="es-name">Name<span class="req">*</span></label><input id="es-name" name="name" maxlength="120" required value="{{d.name|default('') if d.id|default(0)}}"></div>
+      </div>
+      <div class="field"><label for="es-desc">Description <span class="opt">(optional)</span></label><textarea id="es-desc" name="description" maxlength="2000" rows="3">{{d.description|default('') if d.id|default(0)}}</textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Save changes</button></div>
+  </form>
+</dialog>
+
+<dialog class="modal" id="dlg-teacher" aria-labelledby="dlg-teacher-title">
+  <form method="post" action="/academic/offering/teacher" id="form-teacher" data-persist>{{ ui.csrf_input() }}<input type="hidden" name="offering_id" value="">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-teacher-title">Replace teacher</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      <dl class="modal-summary"><dt>Course</dt><dd data-text="course">—</dd><dt>Current teacher</dt><dd data-text="current">—</dd></dl>
+      <div class="field"><label for="rt-teacher">New teacher<span class="req">*</span></label><select id="rt-teacher" name="teacher_id" required><option value="">Select teacher</option>{% for t in teachers %}<option value="{{t.id}}">{{t.full_name}}</option>{% endfor %}</select></div>
+      <div class="field"><label for="rt-reason">Reason <span class="opt">(optional)</span></label><input id="rt-reason" name="reason" maxlength="300" placeholder="e.g. Sick leave"></div>
+      <p class="hint">Existing grades are kept. The previous teacher loses edit access immediately.</p>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Replace teacher</button></div>
+  </form>
+</dialog>
+{% endblock %}

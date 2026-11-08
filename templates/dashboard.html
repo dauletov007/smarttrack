@@ -1,0 +1,110 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'overview' %}{% set page_title = 'Overview' %}
+{% block page %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{'Привет' if lang=='ru' else 'Welcome back'}}, {{user.full_name.split(' ')[0]}}</h1>
+    <div class="page-meta">
+      {% if user.role!='student' %}<span class="chip">{{ ui.icon('calendar') }}Semester <strong>{{ semester.label if semester else '—' }}</strong></span>{% endif %}
+      {% if profile and profile.university %}<span class="chip">{{ ui.icon('graduation') }}{{profile.university}}</span>{% endif %}
+    </div>
+  </div>
+  <div class="page-actions">
+    {% if user.role=='teacher' %}<a class="btn primary" href="/academic">{{ ui.icon('book') }}My courses</a>
+    {% elif user.role=='student' %}<a class="btn primary" href="/academic/my-grade-history">{{ ui.icon('chart') }}My grades</a>
+    {% elif user.role=='parent' and children|length==1 %}<a class="btn primary" href="/academic/parent/{{children[0].id}}">{{ ui.icon('heart') }}{{children[0].full_name.split(' ')[0]}}'s results</a>{% endif %}
+  </div>
+</div>
+
+{% if user.role=='teacher' %}
+<section class="stats four">
+  <a class="stat" href="/academic"><span class="stat-label">{{ ui.icon('book') }}Assigned courses</span><span class="stat-value">{{courses|length}}</span></a>
+  <div class="stat"><span class="stat-label">{{ ui.icon('users') }}Students</span><span class="stat-value">{{student_total}}</span></div>
+  <a class="stat" href="/academic/teacher/assessments?status=pending"><span class="stat-label">{{ ui.icon('clipboard') }}Awaiting approval</span><span class="stat-value">{{pending_total}}</span></a>
+  <a class="stat" href="/academic/teacher/gradebook"><span class="stat-label">{{ ui.icon('table') }}Grades recorded</span><span class="stat-value">{{grades_total}}</span></a>
+</section>
+<div class="grid main-side">
+  <section class="card">
+    <div class="card-head"><h2 class="card-title">My courses <span class="count">{{courses|length}}</span></h2><a class="btn ghost sm" href="/academic">View all {{ ui.icon('chevron') }}</a></div>
+    {% if courses %}<div class="table-wrap"><table class="table">
+      <thead><tr><th>Course</th><th>Group</th><th>Semester</th><th class="num">Students</th><th class="num">Assessments</th></tr></thead>
+      <tbody>{% for o in courses %}<tr><td><a class="rowlink" href="/academic/offering/{{o.id}}">{{o.name}}</a> <span class="code">{{o.code}}</span></td><td>{{o.group_code_snapshot}}</td><td>{{o.label}}</td><td class="num">{{o.students}}</td>
+        <td class="num">{{o.approved}}{% if o.pending %} <span class="badge warn">{{o.pending}} pending</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}{{ ui.empty('No courses assigned yet', 'An administrator assigns courses to you. They will appear here automatically.', 'book') }}{% endif %}
+  </section>
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Recent grading activity</h2></div>
+      {% if activity %}<ul class="list">{% for e in activity %}<li><span class="dot-icon">{{ ui.icon('table' if e.action.startswith('grade') else 'clipboard') }}</span><div class="grow"><div class="title">{{ {'grade.created':'Grade entered','grade.edited':'Grade corrected','assessment.submitted':'Sent for approval','assessment.drafted':'Draft saved','assessment.updated':'Assessment updated'}.get(e.action, e.action) }}</div><div class="desc">{{e.details}}</div></div><span class="meta">{{e.created_at|dt}}</span></li>{% endfor %}</ul>
+      {% else %}{{ ui.empty('No activity yet', '', 'activity') }}{% endif %}
+    </section>
+    {% if reviews %}<section class="card">
+      <div class="card-head"><h2 class="card-title">Approval decisions</h2></div>
+      <ul class="list">{% for r in reviews %}<li><div class="grow"><div class="title"><a href="/academic/offering/{{r.offering_id}}?tab=assessments">{{r.title}}</a></div><div class="desc">{{r.code}}{% if r.review_note %} · {{r.review_note}}{% endif %}</div></div>{{ ui.status(r.status) }}</li>{% endfor %}</ul>
+    </section>{% endif %}
+  </div>
+</div>
+
+{% elif user.role=='student' %}
+<section class="stats four">
+  <div class="stat"><span class="stat-label">{{ ui.icon('calendar') }}Current semester</span><span class="stat-value text">{{ semester.label if semester else '—' }}</span></div>
+  <a class="stat" href="/academic/my-group"><span class="stat-label">{{ ui.icon('group') }}Academic group</span><span class="stat-value text">{{ group.group_code if group else 'Not assigned' }}</span></a>
+  <a class="stat" href="/academic"><span class="stat-label">{{ ui.icon('book') }}Enrolled courses</span><span class="stat-value">{{courses|length}}</span></a>
+  <a class="stat" href="/academic/my-grade-history"><span class="stat-label">{{ ui.icon('chart') }}Grades</span><span class="stat-value">{{grades|length}}</span></a>
+</section>
+{% if not group %}<div class="banner info">{{ ui.icon('info') }}<span>You are not in an academic group yet.</span><a class="textlink" href="/academic/my-group">Request to join a group</a></div>{% endif %}
+<div class="grid main-side">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Latest grades</h2><a class="btn ghost sm" href="/academic/my-grade-history">All grades {{ ui.icon('chevron') }}</a></div>
+      {% if grades %}<div class="table-wrap"><table class="table">
+        <thead><tr><th>Assessment</th><th>Course</th><th class="num">Score</th></tr></thead>
+        <tbody>{% for g in grades[:6] %}<tr><td><span class="strong">{{g.title}}</span><span class="sub">{{g.kind|capitalize}} · {{g.updated_at|dt}}</span></td><td>{{g.name}} <span class="code">{{g.code}}</span></td><td class="num">{{ ui.score(g.score, g.max_score) }}</td></tr>{% endfor %}</tbody></table></div>
+      {% else %}{{ ui.empty('No grades yet', 'Grades appear here as soon as your teachers record them.', 'chart') }}{% endif %}
+    </section>
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">My courses <span class="count">{{courses|length}}</span></h2><a class="btn ghost sm" href="/academic">Open {{ ui.icon('chevron') }}</a></div>
+      {% if courses %}<ul class="list">{% for o in courses %}<li><a class="item" href="/academic/offering/{{o.id}}"><span class="dot-icon">{{ ui.icon('book') }}</span><div class="grow"><div class="title">{{o.name}}</div><div class="desc">{{o.code}} · {{o.teacher_name or 'Teacher not assigned'}}</div></div><span class="meta">{{o.label}}</span></a></li>{% endfor %}</ul>
+      {% else %}{{ ui.empty('No courses yet', 'Courses assigned to your group will appear here.', 'book') }}{% endif %}
+    </section>
+  </div>
+  <section class="card">
+    <div class="card-head"><h2 class="card-title">{{'Родители' if lang=='ru' else 'Parents'}}</h2>
+      <form method="post" action="/invite">{{ ui.csrf_input() }}<button class="btn sm">{{ ui.icon('link') }}{{'Пригласить' if lang=='ru' else 'Invite'}}</button></form></div>
+    {% if links %}<ul class="list">{% for l in links %}<li><span class="avatar">{{ ui.initials(l.full_name) }}</span><div class="grow"><div class="title">{{l.full_name}}</div><div class="desc">{{l.email}}</div></div>
+      <form method="post" action="/unlink" data-confirm="Disconnect {{l.full_name}}? They will no longer see your grades." data-confirm-label="Disconnect">{{ ui.csrf_input() }}<input type="hidden" name="other" value="{{l.id}}"><button class="btn ghost sm icon-only" aria-label="Disconnect {{l.full_name}}" title="Disconnect">{{ ui.icon('unlink') }}</button></form></li>{% endfor %}</ul>
+    {% else %}<div class="card-body muted small">{{'Пока никого нет.' if lang=='ru' else 'No linked parents yet. Create an invitation code and share it privately.'}}</div>{% endif %}
+    {% if invites %}<div class="card-foot" style="display:block"><div class="label" style="margin-bottom:6px">Invitations</div>
+      <ul class="list" style="margin:0 -18px">{% for i in invites[:5] %}<li><span class="grow small">#{{i.id}} · expires {{i.expires_at|dt}}</span>
+        {% if i.used_by %}{{ ui.status('approved','used') }}{% elif i.revoked %}{{ ui.status('archived','revoked') }}{% else %}{{ ui.status('pending','active') }}
+        <form method="post" action="/invite/revoke">{{ ui.csrf_input() }}<input type="hidden" name="id" value="{{i.id}}"><button class="btn ghost sm">{{'Отменить' if lang=='ru' else 'Revoke'}}</button></form>{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+  </section>
+</div>
+
+{% elif user.role=='parent' %}
+{% if children %}<div class="grid {{'cols-2' if children|length > 1 else ''}}">
+{% for ch in children %}
+  <section class="card">
+    <div class="card-head"><div class="row"><span class="avatar lg">{{ ui.initials(ch.full_name) }}</span><div><h2 class="card-title">{{ch.full_name}}</h2><div class="small muted">{{ch.email}}</div></div></div>
+      <a class="btn sm" href="/academic/parent/{{ch.id}}">Open {{ ui.icon('chevron') }}</a></div>
+    <div class="card-body"><div class="stats four" style="margin:0">
+      <div class="stat"><span class="stat-label">Group</span><span class="stat-value text">{{ ch.group.group_code if ch.group else '—' }}</span></div>
+      <div class="stat"><span class="stat-label">Semester</span><span class="stat-value text">{{ semester.label if semester else '—' }}</span></div>
+      <a class="stat" href="/academic/parent/{{ch.id}}?tab=courses"><span class="stat-label">Courses</span><span class="stat-value">{{ch.courses|length}}</span></a>
+      <a class="stat" href="/academic/parent/{{ch.id}}?tab=grades"><span class="stat-label">Grades</span><span class="stat-value">{{ch.grade_count}}</span></a>
+    </div></div>
+    {% if ch.grades %}<div class="table-wrap"><table class="table"><thead><tr><th>Recent grade</th><th>Course</th><th class="num">Score</th></tr></thead><tbody>
+      {% for g in ch.grades %}<tr><td><span class="strong">{{g.title}}</span><span class="sub">{{g.updated_at|dt}}</span></td><td>{{g.name}}</td><td class="num">{{ ui.score(g.score, g.max_score) }}</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<div class="card-foot">No grades recorded yet.</div>{% endif %}
+  </section>
+{% endfor %}</div>
+{% else %}<section class="card">{{ ui.empty('No linked student', 'Ask your student to create an invitation code in SmartTrack, then register or link with it.', 'heart') }}</section>{% endif %}
+<section class="card mt-18">
+  <div class="card-head"><h2 class="card-title">{{'Привязанный студент' if lang=='ru' else 'Linked students'}}</h2></div>
+  {% if links %}<ul class="list">{% for l in links %}<li><span class="avatar">{{ ui.initials(l.full_name) }}</span><div class="grow"><div class="title">{{l.full_name}}</div><div class="desc">{{l.university or l.email}}</div></div>
+    <a class="btn ghost sm" href="/academic/parent/{{l.id}}">{{'Предметы и оценки' if lang=='ru' else 'Courses & grades'}}</a>
+    <form method="post" action="/unlink" data-confirm="Disconnect from {{l.full_name}}? You will lose access to their results." data-confirm-label="Disconnect">{{ ui.csrf_input() }}<input type="hidden" name="other" value="{{l.id}}"><button class="btn ghost sm">{{ ui.icon('unlink') }}{{'Отключить' if lang=='ru' else 'Disconnect'}}</button></form></li>{% endfor %}</ul>
+  {% else %}<div class="card-body muted small">{{'Нет привязки.' if lang=='ru' else 'No linked student.'}}</div>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

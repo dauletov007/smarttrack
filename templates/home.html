@@ -1,0 +1,29 @@
+{% extends 'public.html' %}{% import '_ui.html' as ui with context %}
+{% set page_title = 'Student information system' %}
+{% block public %}
+<section class="hero">
+  <div>
+    <span class="hero-eyebrow"><b>{{'Новое' if lang=='ru' else 'New'}}</b>{{'Курсы, оценки и история изменений' if lang=='ru' else 'Courses, grades and full grade history'}}</span>
+    <h1>{{'Ваш путь в учёбе.' if lang=='ru' else 'Your learning.'}}<br><em>{{'На своих условиях.' if lang=='ru' else 'Your own way.'}}</em></h1>
+    <p class="lead">{{'Простая платформа, где студенты, преподаватели и родители остаются на связи. Без лишнего шума.' if lang=='ru' else 'A simple place for students, teachers and parents to stay connected. Without the noise.'}}</p>
+    <div class="hero-actions">
+      {% if user %}<a class="btn primary lg" href="/dashboard">{{'Открыть кабинет' if lang=='ru' else 'Open dashboard'}} {{ ui.icon('chevron') }}</a>
+      {% else %}<a class="btn primary lg" href="/register">{{'Начать' if lang=='ru' else 'Get started'}} {{ ui.icon('chevron') }}</a><a class="btn lg" href="/login">{{'Войти' if lang=='ru' else 'Log in'}}</a>{% endif %}
+    </div>
+  </div>
+  <div class="preview" aria-hidden="true">
+    <div class="preview-bar"><i></i><i></i><i></i></div>
+    <div class="preview-body">
+      <div class="between"><strong style="font-size:15px">MATH101 · Calculus I</strong><span class="badge ok">Open</span></div>
+      <div class="preview-row"><span>Midterm exam</span><span class="score"><span class="score-bar"><i style="width:86%"></i></span><span class="score-val">86</span> <span class="score-max">/ 100</span></span></div>
+      <div class="preview-row"><span>Homework 1</span><span class="score"><span class="score-bar"><i style="width:90%"></i></span><span class="score-val">18</span> <span class="score-max">/ 20</span></span></div>
+      <div class="preview-row"><span>Final project</span><span class="badge warn">Awaiting approval</span></div>
+    </div>
+  </div>
+</section>
+<section class="features">
+  <article class="feature"><span class="dot-icon accent">{{ ui.icon('graduation') }}</span><h2>{{'Студентам' if lang=='ru' else 'For students'}}</h2><p>{{'Курсы, оценки и группа — в одном месте. Пригласите родителя по личному коду.' if lang=='ru' else 'Courses, grades and your group in one place. Invite a parent with a private code.'}}</p></article>
+  <article class="feature"><span class="dot-icon accent">{{ ui.icon('teacher') }}</span><h2>{{'Преподавателям' if lang=='ru' else 'For teachers'}}</h2><p>{{'Задания, экзамены и журнал оценок с историей изменений.' if lang=='ru' else 'Assignments, exams and a gradebook with a full change history.'}}</p></article>
+  <article class="feature"><span class="dot-icon accent">{{ ui.icon('heart') }}</span><h2>{{'Родителям' if lang=='ru' else 'For parents'}}</h2><p>{{'Присоединяйтесь только по приглашению студента и следите за успехами.' if lang=='ru' else 'Join safely through a student invitation and follow progress, read-only.'}}</p></article>
+</section>
+{% endblock %}

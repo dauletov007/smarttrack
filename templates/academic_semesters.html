@@ -1,0 +1,51 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'semesters' %}{% set page_title = 'Semesters' %}
+{% macro act(s, value, label, cls='btn sm', confirm='', icon_name='') -%}
+<form method="post" action="/academic/semester/status" {% if confirm %}data-confirm="{{confirm}}" data-confirm-label="{{label}}" {% if value!='closed' %}data-confirm-safe{% endif %}{% endif %}>{{ ui.csrf_input() }}<input type="hidden" name="semester_id" value="{{s.id}}"><input type="hidden" name="status" value="{{value}}"><button class="{{cls}}">{% if icon_name %}{{ ui.icon(icon_name) }}{% endif %}{{label}}</button></form>
+{%- endmacro %}
+{% block page %}
+<div class="page-head">
+  <div><h1 class="page-title">Semesters</h1><p class="page-sub">Grades can be entered only while a semester is open.</p></div>
+  <div class="page-actions"><button class="btn primary" type="button" data-open="dlg-semester">{{ ui.icon('plus') }}Create semester</button></div>
+</div>
+<div class="stack">
+<section class="card">
+  {% if rows %}<div class="table-wrap"><table class="table">
+    <thead><tr><th>Semester</th><th>Academic year</th><th>Start</th><th>End</th><th>Status</th><th class="num">Courses</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for s in rows %}<tr>
+      <td><span class="strong">{{s.label}}</span>{% if s.is_current %} {{ ui.status('current','current') }}{% endif %}</td>
+      <td class="muted">{% if s.start_date.month >= 8 %}{{s.start_date.year}}–{{s.start_date.year + 1}}{% else %}{{s.start_date.year - 1}}–{{s.start_date.year}}{% endif %}</td>
+      <td class="nowrap">{{s.start_date.strftime('%d %b %Y')}}</td><td class="nowrap">{{s.end_date.strftime('%d %b %Y')}}</td>
+      <td>{{ ui.semester_badge(s.status) }}{% if s.closed_at %}<span class="sub">closed {{s.closed_at|dt}}</span>{% endif %}</td>
+      <td class="num">{{s.courses}}</td>
+      <td><div class="actions">
+        {% if s.status=='draft' %}{{ act(s,'active','Activate','btn primary sm','','check') }}{% endif %}
+        {% if s.status=='active' %}{{ act(s,'closed','Close','btn sm','Close ' ~ s.label ~ '? Grades become read-only until it is reopened.','lock') }}{% endif %}
+        {% if s.status=='closed' %}{{ act(s,'active','Reopen','btn sm','Reopen ' ~ s.label ~ '? Teachers can edit its grades again. This is recorded in the activity log.','lock-open') }}{% endif %}
+        {% if s.status!='closed' and not s.is_current %}<details class="menu"><summary class="btn ghost sm icon-only" aria-label="More actions for {{s.label}}">{{ ui.icon('more') }}</summary><div class="menu-pop">{{ act(s,'current','Make current semester','menu-item') }}</div></details>{% endif %}
+      </div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No semesters yet', 'Create a semester such as Fall 2026 with its start and end dates.', 'calendar', 'Create semester', 'dlg-semester') }}{% endif %}
+</section>
+<section class="card">
+  <div class="card-head"><h2 class="card-title">Status changes</h2><a class="btn ghost sm" href="/admin/activity?area=semester">Full log {{ ui.icon('chevron') }}</a></div>
+  {% if events %}<ul class="list">{% for e in events %}<li><span class="dot-icon">{{ ui.icon('calendar') }}</span><div class="grow"><div class="title">{{ e.action|replace('semester.','')|replace('_',' ')|capitalize }}</div><div class="desc">{{e.details}}</div></div><span class="meta">{{e.actor}} · {{e.created_at|dt}}</span></li>{% endfor %}</ul>
+  {% else %}{{ ui.empty('No changes yet', '', 'activity') }}{% endif %}
+</section>
+</div>
+{% endblock %}
+{% block dialogs %}
+<dialog class="modal" id="dlg-semester" aria-labelledby="dlg-sem-title">
+  <form method="post" action="/academic/semester" id="form-semester" data-persist>{{ ui.csrf_input() }}
+    <div class="modal-head"><h2 class="modal-title" id="dlg-sem-title">Create semester</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      <div class="field"><label for="se-label">Name<span class="req">*</span></label><input id="se-label" name="label" placeholder="Fall 2026" maxlength="80" required></div>
+      <div class="form-row">
+        <div class="field"><label for="se-start">Start date<span class="req">*</span></label><input id="se-start" name="start_date" type="date" required></div>
+        <div class="field"><label for="se-end">End date<span class="req">*</span></label><input id="se-end" name="end_date" type="date" required></div>
+      </div>
+      <label class="check"><input type="checkbox" name="activate" value="1" checked> Open for grading now</label>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Create semester</button></div>
+  </form>
+</dialog>
+{% endblock %}

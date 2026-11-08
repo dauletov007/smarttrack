@@ -1,0 +1,77 @@
+{% extends 'base.html' %}{% import '_ui.html' as ui with context %}
+{% block body_class %}app-body{% endblock %}
+{% block body %}
+{%- set role = user.role if user else '' -%}
+{%- set counts = nav_counts|default({}) -%}
+{%- set kids = nav_children|default([]) -%}
+{%- if role == 'admin' -%}
+  {%- set items = [
+    ('overview','Overview','/academic/admin','home', 0),
+    ('courses','Courses','/academic/courses','book', 0),
+    ('groups','Groups','/academic/groups','users', counts.get('pending_requests',0)),
+    ('semesters','Semesters','/academic/semesters','calendar', 0),
+    ('teachers','Teachers','/academic/teachers','teacher', counts.get('pending_teachers',0)),
+    ('assessments','Assessments','/academic/assessments','clipboard', counts.get('pending_assessments',0)),
+    ('users','Users','/admin/users','user', 0),
+    ('activity','Activity log','/admin/activity','activity', 0)] -%}
+{%- elif role == 'teacher' -%}
+  {%- set items = [
+    ('overview','Overview','/dashboard','home', 0),
+    ('courses','My Courses','/academic','book', 0),
+    ('assessments','Assessments','/academic/teacher/assessments','clipboard', counts.get('rejected_assessments',0)),
+    ('gradebook','Gradebook','/academic/teacher/gradebook','table', 0),
+    ('profile','Profile','/profile','settings', 0)] -%}
+{%- elif role == 'student' -%}
+  {%- set items = [
+    ('overview','Overview','/dashboard','home', 0),
+    ('courses','My Courses','/academic','book', 0),
+    ('grades','Grades','/academic/my-grade-history','chart', 0),
+    ('group','My Group','/academic/my-group','group', 0),
+    ('profile','Profile','/profile','settings', 0)] -%}
+{%- elif role == 'parent' -%}
+  {%- set child_url = ('/academic/parent/%d' % kids[0].id) if kids|length == 1 else '/academic' -%}
+  {%- set items = [
+    ('overview','Overview','/dashboard','home', 0),
+    ('child','My Child' if kids|length <= 1 else 'My Children', child_url,'heart', 0),
+    ('child-courses','Courses', child_url ~ ('?tab=courses' if kids|length == 1 else ''),'book', 0),
+    ('child-grades','Grades', child_url ~ ('?tab=grades' if kids|length == 1 else ''),'chart', 0),
+    ('profile','Profile','/profile','settings', 0)] -%}
+{%- else -%}{%- set items = [] -%}{%- endif -%}
+<a class="skip" href="#main">Skip to content</a>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar" aria-label="Sidebar">
+    <div class="sb-brand"><a class="brand" href="{{ '/academic/admin' if role=='admin' else '/dashboard' }}"><span class="brand-mark">st</span>smart<span>track</span><i>.</i></a></div>
+    <div class="sb-section">{{ {'admin':'Administration','teacher':'Teaching','student':'Study','parent':'Family'}.get(role,'') }}</div>
+    <nav class="sb-nav" aria-label="Main">
+      {%- for key,label,href,ic,badge in items %}
+      <a class="sb-link {{'active' if nav_active==key}}" href="{{href}}" {% if nav_active==key %}aria-current="page"{% endif %}>{{ ui.icon(ic) }}<span>{{label}}</span>{% if badge %}<span class="sb-count" title="Needs attention">{{badge}}</span>{% endif %}</a>
+      {%- endfor %}
+    </nav>
+    {% if user %}<div class="sb-user">
+      <a class="sb-user-row" href="/profile"><span class="avatar">{{ ui.initials(user.full_name) }}</span><span style="min-width:0"><span class="sb-user-name" style="display:block">{{user.full_name}}</span><span class="sb-user-role">{{user.role}}</span></span></a>
+      <div class="sb-user-actions">
+        <span class="lang" style="justify-content:center"><a href="/lang/en" class="{{'on' if lang=='en'}}">EN</a><a href="/lang/ru" class="{{'on' if lang=='ru'}}">RU</a></span>
+        <form method="post" action="/logout">{{ ui.csrf_input() }}<button class="btn ghost sm block" data-no-loading>{{ ui.icon('logout') }}{{'Выйти' if lang=='ru' else 'Log out'}}</button></form>
+      </div>
+    </div>{% endif %}
+  </aside>
+  <div class="sb-backdrop" data-nav-close></div>
+  <div class="main">
+    <header class="topbar">
+      <button class="btn ghost icon-only menu-toggle" type="button" data-nav-toggle aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation">{{ ui.icon('menu') }}</button>
+      <div class="topbar-title"><nav class="crumbs" aria-label="Breadcrumb">{% block crumbs %}<span class="here">{{ page_title|default('') }}</span>{% endblock %}</nav></div>
+      <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+    </header>
+    <main class="content" id="main">
+      {% include '_flash.html' %}
+      {% block page %}{% endblock %}
+    </main>
+  </div>
+</div>
+<dialog class="modal" id="confirm-dialog" aria-labelledby="confirm-title">
+  <div class="modal-head"><h2 class="modal-title" id="confirm-title">Please confirm</h2><button class="btn ghost sm icon-only" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+  <div class="modal-body"><p data-confirm-text class="muted"></p></div>
+  <div class="modal-foot"><button class="btn" data-close type="button">Cancel</button><button class="btn danger-solid" type="button" data-confirm-ok>Confirm</button></div>
+</dialog>
+{% block dialogs %}{% endblock %}
+{% endblock %}

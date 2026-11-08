@@ -1,0 +1,11 @@
+{% extends 'auth_layout.html' %}{% import '_ui.html' as ui with context %}{% set auth_icon = 'shield' %}{% set page_title = 'Teacher approval' %}
+{% block auth_title %}{{'Ожидаем одобрения' if lang=='ru' else 'Awaiting approval'}}{% endblock %}
+{% block auth_sub %}{{'Администратор проверит вашу личность и одобрит аккаунт или передаст вам код.' if lang=='ru' else 'An administrator checks your identity and either approves your account directly or gives you an approval code.'}}{% endblock %}
+{% block auth_body %}
+<form class="form" method="post" action="/teacher-approval">{{ ui.csrf_input() }}
+  <div class="field"><label for="ta-email">Email</label><input id="ta-email" type="email" name="email" value="{{email}}" required></div>
+  <div class="field"><label for="ta-code">{{'Код администратора' if lang=='ru' else 'Approval code'}}</label><input id="ta-code" class="code-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></div>
+  <button class="btn primary lg block">{{'Активировать' if lang=='ru' else 'Activate teacher account'}}</button>
+</form>
+{% endblock %}
+{% block auth_foot %}<div class="auth-foot">{{'Уже одобрены?' if lang=='ru' else 'Already approved?'}} <a class="textlink" href="/login">{{'Войти' if lang=='ru' else 'Log in'}}</a></div>{% endblock %}

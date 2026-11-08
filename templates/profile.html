@@ -1,0 +1,33 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'profile' %}{% set page_title = 'Profile' %}
+{% block page %}
+<div class="page-head"><div class="row" style="gap:14px"><span class="avatar lg">{{ ui.initials(user.full_name) }}</span><div><h1 class="page-title">{{user.full_name}}</h1><div class="page-meta" style="margin-top:6px">{{ ui.status('none', user.role) }}<span class="chip">{{ ui.icon('mail') }}{{user.email}}</span></div></div></div></div>
+<div class="grid main-side">
+  <section class="card"><div class="card-head"><h2 class="card-title">{{'Профиль' if lang=='ru' else 'Personal details'}}</h2></div>
+    <form class="form card-body" method="post" action="/profile" id="form-profile" data-persist>{{ ui.csrf_input() }}
+      <div class="field"><label for="pf-name">{{'Имя и фамилия' if lang=='ru' else 'Full name'}}<span class="req">*</span></label><input id="pf-name" name="full_name" value="{{user.full_name}}" minlength="2" maxlength="120" required></div>
+      <div class="field"><label for="pf-uni">{{'Университет' if lang=='ru' else 'University'}}</label><input id="pf-uni" name="university" value="{{profile.university}}" maxlength="200"></div>
+      {% if user.role=='student' %}<div class="form-row">
+        <div class="field"><label for="pf-fac">{{'Факультет' if lang=='ru' else 'Faculty'}}</label><input id="pf-fac" name="faculty" value="{{profile.faculty}}" maxlength="200"></div>
+        <div class="field"><label for="pf-major">{{'Специальность' if lang=='ru' else 'Major'}}</label><input id="pf-major" name="major" value="{{profile.major}}" maxlength="200"></div></div>
+        <div class="field"><label for="pf-year">{{'Курс' if lang=='ru' else 'Year of study'}}</label><input id="pf-year" name="study_year" value="{{profile.study_year}}" maxlength="200"></div>
+      {% elif user.role=='teacher' %}<div class="form-row">
+        <div class="field"><label for="pf-dep">{{'Кафедра' if lang=='ru' else 'Department'}}</label><input id="pf-dep" name="department" value="{{profile.department}}" maxlength="200"></div>
+        <div class="field"><label for="pf-pos">{{'Должность' if lang=='ru' else 'Position'}}</label><input id="pf-pos" name="position" value="{{profile.position}}" maxlength="200"></div></div>
+        <div class="field"><label for="pf-sub">{{'Предметы' if lang=='ru' else 'Teaching subjects'}}</label><input id="pf-sub" name="subjects" value="{{profile.subjects}}" maxlength="200"></div>
+      {% elif user.role=='parent' %}<div class="field"><label for="pf-rel">{{'Степень родства' if lang=='ru' else 'Relationship'}}</label><input id="pf-rel" name="relationship" value="{{profile.relationship}}" maxlength="200" placeholder="Mother, father, guardian…"></div>{% endif %}
+      <div class="form-actions"><a class="btn" href="/dashboard">Cancel</a><button class="btn primary">{{'Сохранить' if lang=='ru' else 'Save changes'}}</button></div>
+    </form></section>
+  <div class="stack">
+    <section class="card"><div class="card-head"><h2 class="card-title">{{ ui.icon('mail') }}{{'Изменить email' if lang=='ru' else 'Change email'}}</h2></div>
+      <form class="form card-body" method="post" action="/profile/email">{{ ui.csrf_input() }}
+        <div class="field"><label for="pf-email">New email<span class="req">*</span></label><input id="pf-email" type="email" name="new_email" required><span class="hint">We send a code to the new address.</span></div>
+        <div class="form-actions left"><button class="btn">{{'Отправить код' if lang=='ru' else 'Send verification code'}}</button></div></form></section>
+    <section class="card"><div class="card-head"><h2 class="card-title">{{ ui.icon('lock') }}{{'Изменить пароль' if lang=='ru' else 'Change password'}}</h2></div>
+      <form class="form card-body" action="/profile/password" method="post">{{ ui.csrf_input() }}
+        <div class="field"><label for="pf-old">{{'Текущий пароль' if lang=='ru' else 'Current password'}}<span class="req">*</span></label><input id="pf-old" type="password" name="old_password" autocomplete="current-password" required></div>
+        <div class="field"><label for="pf-new">{{'Новый пароль' if lang=='ru' else 'New password'}}<span class="req">*</span></label><input id="pf-new" type="password" name="new_password" minlength="8" autocomplete="new-password" required><span class="hint">At least 8 characters. You will be signed out.</span></div>
+        <div class="form-actions left"><button class="btn">{{'Сменить пароль' if lang=='ru' else 'Update password'}}</button></div></form></section>
+  </div>
+</div>
+{% endblock %}

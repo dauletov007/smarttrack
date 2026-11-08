@@ -1,0 +1,14 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'grades' %}{% set page_title = 'Grades' %}
+{% block page %}
+<div class="page-head"><div><h1 class="page-title">Grades</h1><p class="page-sub">All your grades, including earlier groups and closed semesters.</p></div></div>
+<section class="card">
+  <div class="toolbar"><label class="search">{{ ui.icon('search') }}<span class="sr-only">Search grades</span><input placeholder="Search course or assessment" data-filter="#grades-table"></label><span class="grow"></span><span class="small muted">{{rows|length}} grade{{'s' if rows|length != 1}}</span></div>
+  {% if rows %}<div class="table-wrap"><table class="table" id="grades-table">
+    <thead><tr><th>Assessment</th><th>Type</th><th>Course</th><th>Semester · group</th><th>Date</th><th class="num">Score</th><th class="num"><span class="sr-only">History</span></th></tr></thead>
+    <tbody>{% for g in rows %}<tr data-row><td class="strong">{{g.title}}</td><td>{{g.kind|capitalize}}</td><td><a class="rowlink" href="/academic/offering/{{g.offering_id}}?tab=grades">{{g.name}}</a><span class="sub">{{g.code}} · {{g.teacher_name or '—'}}</span></td><td class="muted">{{g.label}} · {{g.group_code_snapshot}}</td><td class="small muted nowrap">{{g.updated_at|dt}}</td>
+      <td class="num">{{ ui.score(g.score, g.max_score) }}</td><td class="num"><a class="btn ghost sm icon-only" href="/academic/grade/{{g.grade_id}}/history" title="History" aria-label="History of {{g.title}}">{{ ui.icon('history') }}</a></td></tr>{% endfor %}
+      <tr data-no-match hidden><td colspan="7" class="empty-cell">{{ ui.empty('No matching grades', '', 'search') }}</td></tr></tbody></table></div>
+  {% else %}{{ ui.empty('No grades yet', 'Grades appear here as soon as your teachers record them.', 'chart') }}{% endif %}
+</section>
+{% endblock %}

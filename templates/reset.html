@@ -1,0 +1,11 @@
+{% extends 'auth_layout.html' %}{% import '_ui.html' as ui with context %}{% set auth_icon = 'key' %}{% set page_title = 'New password' %}
+{% block auth_title %}{{'Новый пароль' if lang=='ru' else 'Choose a new password'}}{% endblock %}
+{% block auth_sub %}{{'Если такой email есть, код отправлен. Он действует 10 минут.' if lang=='ru' else 'If that address exists, a reset code has been sent. Valid for 10 minutes.'}}{% endblock %}
+{% block auth_body %}
+<form class="form" action="/reset" method="post">{{ ui.csrf_input() }}
+  <div class="field"><label for="rs-email">Email</label><input id="rs-email" type="email" name="email" value="{{email}}" required></div>
+  <div class="field"><label for="rs-code">{{'Код' if lang=='ru' else 'Reset code'}}</label><input id="rs-code" class="code-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="one-time-code" required></div>
+  <div class="field"><label for="rs-pass">{{'Новый пароль' if lang=='ru' else 'New password'}}</label><input id="rs-pass" name="password" type="password" minlength="8" autocomplete="new-password" required><span class="hint">{{'Минимум 8 символов' if lang=='ru' else 'At least 8 characters'}}</span></div>
+  <button class="btn primary lg block">{{'Сохранить пароль' if lang=='ru' else 'Reset password'}}</button>
+</form>
+{% endblock %}

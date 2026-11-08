@@ -1,0 +1,16 @@
+{% extends 'base.html' %}{% import '_ui.html' as ui with context %}
+{% block body_class %}public-body{% endblock %}
+{% block body %}
+<div class="public">
+  <header class="public-top">
+    <a class="brand" href="/"><span class="brand-mark">st</span>smart<span>track</span><i>.</i></a>
+    <nav class="public-nav" aria-label="Main">
+      {% if user %}<a class="btn ghost" href="/dashboard">{{'Кабинет' if lang=='ru' else 'Dashboard'}}</a>
+      {% else %}<a class="btn ghost" href="/login">{{'Войти' if lang=='ru' else 'Log in'}}</a><a class="btn primary" href="/register">{{'Регистрация' if lang=='ru' else 'Sign up'}}</a>{% endif %}
+      <span class="lang"><a href="/lang/en" class="{{'on' if lang=='en'}}">EN</a><a href="/lang/ru" class="{{'on' if lang=='ru'}}">RU</a></span>
+    </nav>
+  </header>
+  <main class="public-main" id="main">{% block public %}{% endblock %}</main>
+  <footer class="public-foot"><span>SmartTrack © 2026</span><span>{{'Простое пространство для учёбы.' if lang=='ru' else 'A quieter space for learning.'}}</span></footer>
+</div>
+{% endblock %}

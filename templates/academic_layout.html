@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block main_class %}ac{% endblock %}
+{% block content %}
+{% if user and user.role=='admin' %}{% include 'academic_nav.html' %}{% endif %}
+{% block page %}{% endblock %}
+{% endblock %}

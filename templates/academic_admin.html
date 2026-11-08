@@ -1,0 +1,34 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'overview' %}{% set page_title = 'Overview' %}
+{% block page %}
+<div class="page-head">
+  <div><h1 class="page-title">Overview</h1></div>
+  <div class="page-actions"><a class="btn" href="/academic/groups">{{ ui.icon('users') }}Groups</a><a class="btn primary" href="/academic/courses?assign=1">{{ ui.icon('plus') }}Assign course</a></div>
+</div>
+<section class="stats">
+  <a class="stat" href="/admin/users?role=student"><span class="stat-label">{{ ui.icon('graduation') }}Total students</span><span class="stat-value">{{counts.students_total}}</span><span class="stat-note">{{counts.students}} in groups</span></a>
+  <a class="stat" href="/academic/teachers"><span class="stat-label">{{ ui.icon('teacher') }}Total teachers</span><span class="stat-value">{{counts.teachers}}</span><span class="stat-note">approved</span></a>
+  <a class="stat" href="/academic/courses"><span class="stat-label">{{ ui.icon('book') }}Active courses</span><span class="stat-value">{{counts.offerings}}</span><span class="stat-note">{{counts.subjects}} subjects</span></a>
+  <a class="stat" href="/academic/groups"><span class="stat-label">{{ ui.icon('users') }}Academic groups</span><span class="stat-value">{{counts.groups}}</span><span class="stat-note">{{counts.unassigned}} students unassigned</span></a>
+  <a class="stat" href="/academic/semesters"><span class="stat-label">{{ ui.icon('calendar') }}Current semester</span><span class="stat-value text">{{ semester.label if semester else '—' }}</span><span class="stat-note">{% if semester %}{{ {'active':'Open for grading','draft':'Draft','closed':'Closed'}.get(semester.status) }}{% else %}Not set{% endif %}</span></a>
+</section>
+{% set attention = [('Assessments awaiting approval', counts.pending_assessments, '/academic/assessments', 'clipboard'),
+                    ('Group join requests', counts.pending_requests, '/academic/groups?tab=requests', 'inbox'),
+                    ('Teachers awaiting approval', counts.pending_teachers, '/academic/teachers#pending', 'teacher')] %}
+{% set todo = attention|selectattr(1)|list %}
+{% if todo %}<div class="grid cols-3 mb-18">{% for label,n,href,ic in todo %}<a class="card" href="{{href}}" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><span class="dot-icon accent">{{ ui.icon(ic) }}</span><span class="grow" style="flex:1;font-weight:550">{{label}}</span><span class="badge accent plain">{{n}}</span></a>{% endfor %}</div>{% endif %}
+<div class="grid main-side">
+  <section class="card">
+    <div class="card-head"><h2 class="card-title">Course assignments</h2><a class="btn ghost sm" href="/academic/courses">All courses {{ ui.icon('chevron') }}</a></div>
+    {% if offerings %}<div class="table-wrap"><table class="table">
+      <thead><tr><th>Subject</th><th>Group</th><th>Semester</th><th>Teacher</th><th class="num">Students</th></tr></thead>
+      <tbody>{% for o in offerings %}<tr><td><a class="rowlink" href="/academic/offering/{{o.id}}">{{o.name}}</a> <span class="code">{{o.code}}</span></td><td>{{o.group_code_snapshot}}</td><td>{{o.label}}</td><td>{{o.teacher_name or '—'}}</td><td class="num">{{o.students}}</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}{{ ui.empty('No courses assigned', 'Assign a subject to a group, semester and teacher.', 'book', ('Assign course','/academic/courses?assign=1')) }}{% endif %}
+  </section>
+  <section class="card">
+    <div class="card-head"><h2 class="card-title">Recent activity</h2><a class="btn ghost sm" href="/admin/activity">View log {{ ui.icon('chevron') }}</a></div>
+    {% if events %}<ul class="list">{% for e in events[:8] %}<li><div class="grow"><div class="title">{{ e.action|replace('.', ' · ')|replace('_',' ') }}</div><div class="desc">{{ e.details or ('#' ~ e.target_id if e.target_id else '') }}</div></div><span class="meta" title="{{e.created_at|dt}}">{{e.actor or 'system'}}</span></li>{% endfor %}</ul>
+    {% else %}{{ ui.empty('No activity yet', '', 'activity') }}{% endif %}
+  </section>
+</div>
+{% endblock %}

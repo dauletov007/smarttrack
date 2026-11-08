@@ -1,0 +1,44 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'child' if user.role=='parent' else 'courses' %}{% set page_title = 'My Children' if user.role=='parent' else 'My Courses' %}
+{% block page %}
+{% if user.role=='teacher' %}
+<div class="page-head"><div><h1 class="page-title">My Courses</h1><p class="page-sub">{{rows|length}} active course{{'s' if rows|length != 1}}{% if semester %} · {{semester.label}}{% endif %}</p></div>
+  <div class="page-actions"><a class="btn" href="/academic/teacher/gradebook">{{ ui.icon('table') }}Gradebook</a></div></div>
+{% if rows %}<div class="course-grid">{% for o in rows %}
+  <a class="course-card" href="/academic/offering/{{o.id}}">
+    <div class="cc-top"><span class="code">{{o.code}}</span>{{ ui.semester_badge(o.semester_status) }}</div>
+    <div class="cc-title">{{o.name}}</div>
+    <div class="cc-meta"><span>{{ ui.icon('users') }}Group {{o.group_code_snapshot}} · {{o.students}} student{{'s' if o.students != 1}}</span><span>{{ ui.icon('calendar') }}{{o.label}}</span></div>
+    <div class="cc-foot"><span>{{o.approved}} assessment{{'s' if o.approved != 1}}</span>{% if o.pending %}<span class="badge warn">{{o.pending}} pending</span>{% else %}<span>{{o.grade_count}} grades</span>{% endif %}</div>
+  </a>{% endfor %}</div>
+{% else %}<section class="card">{{ ui.empty('No courses are assigned to you yet', 'When an administrator assigns you to a course, it appears here.', 'book') }}</section>{% endif %}
+{% if past %}<section class="card mt-18"><div class="card-head"><h2 class="card-title">Closed or archived <span class="count">{{past|length}}</span></h2></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Subject</th><th>Group</th><th>Semester</th><th>Status</th><th class="num"></th></tr></thead><tbody>
+  {% for o in past %}<tr class="muted"><td><span class="strong">{{o.name}}</span> <span class="code">{{o.code}}</span></td><td>{{o.group_code_snapshot}}</td><td>{{o.label}}</td><td>{% if o.status=='archived' %}{{ ui.status('archived') }}{% else %}{{ ui.semester_badge(o.semester_status) }}{% endif %}</td><td class="num"><a class="btn ghost sm" href="/academic/offering/{{o.id}}">View</a></td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+
+{% elif user.role=='student' %}
+<div class="page-head"><div><h1 class="page-title">My Courses</h1>
+  <div class="page-meta"><a class="chip" href="/academic/my-group">{{ ui.icon('group') }}Group <strong>{{group.group_code if group else 'not assigned'}}</strong></a><span class="chip">{{ ui.icon('calendar') }}Semester <strong>{{semester.label if semester else '—'}}</strong></span></div></div>
+  <div class="page-actions"><a class="btn" href="/academic/my-grade-history">{{ ui.icon('chart') }}All grades</a></div></div>
+{% if not group %}<div class="banner info">{{ ui.icon('info') }}<span>{% if pending_request %}Your request to join {{pending_request.group_code}} is waiting for approval.{% else %}You are not in a group yet, so no courses are shown.{% endif %}</span>{% if not pending_request %}<a class="textlink" href="/academic/my-group">Request to join</a>{% endif %}</div>{% endif %}
+{% if rows %}<div class="course-grid">{% for o in rows %}
+  <a class="course-card" href="/academic/offering/{{o.id}}">
+    <div class="cc-top"><span class="code">{{o.code}}</span>{% if o.is_current %}{{ ui.status('current','current') }}{% else %}{{ ui.semester_badge(o.semester_status) }}{% endif %}</div>
+    <div class="cc-title">{{o.name}}</div>
+    <div class="cc-meta"><span>{{ ui.icon('teacher') }}{{o.teacher_name or 'Teacher not assigned'}}</span><span>{{ ui.icon('calendar') }}{{o.label}} · {{o.group_code_snapshot}}</span></div>
+    <div class="cc-foot"><span>{{o.assessments}} assessment{{'s' if o.assessments != 1}}</span><span>Open {{ ui.icon('chevron') }}</span></div>
+  </a>{% endfor %}</div>
+{% elif group %}<section class="card">{{ ui.empty('No courses yet', 'No courses are assigned to ' ~ group.group_code ~ ' yet.', 'book') }}</section>{% endif %}
+
+{% elif user.role=='parent' %}
+<div class="page-head"><div><h1 class="page-title">My Children</h1><p class="page-sub">Read-only view of linked students.</p></div></div>
+{% if children %}<div class="course-grid">{% for child in children %}
+  <a class="course-card" href="/academic/parent/{{child.id}}">
+    <div class="cc-top"><span class="avatar">{{ ui.initials(child.full_name) }}</span>{{ ui.status('none','student') }}</div>
+    <div class="cc-title">{{child.full_name}}</div>
+    <div class="cc-meta"><span>{{ ui.icon('group') }}Group {{child.group_code or '—'}}</span><span>{{ ui.icon('mail') }}{{child.email}}</span></div>
+    <div class="cc-foot"><span>Courses &amp; grades</span><span>{{ ui.icon('chevron') }}</span></div>
+  </a>{% endfor %}</div>
+{% else %}<section class="card">{{ ui.empty('No linked students', 'Ask your student to create an invitation code in SmartTrack.', 'heart') }}</section>{% endif %}
+{% endif %}
+{% endblock %}

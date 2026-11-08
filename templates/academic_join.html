@@ -1,0 +1,31 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'group' %}{% set page_title = 'My Group' %}
+{% block page %}
+<div class="page-head"><div><h1 class="page-title">My Group</h1><p class="page-sub">Your academic group determines which courses you take.</p></div></div>
+<div class="grid main-side">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Current group</h2></div>
+      {% if current %}<div class="card-body"><div class="row" style="gap:14px"><span class="dot-icon accent" style="width:44px;height:44px">{{ ui.icon('group') }}</span><div><div style="font-size:20px;font-weight:700;letter-spacing:-.02em">{{current.group_code}}</div><div class="small muted">Member since {{current.since_at|dt}} · {{classmates}} student{{'s' if classmates != 1}} · {{courses|length}} course{{'s' if courses|length != 1}}</div></div></div>
+        <p class="hint mt-12">To change group, ask an administrator for a transfer. Your grades always stay with you.</p></div>
+      {% elif pending %}<div class="card-body"><div class="banner" style="margin:0">{{ ui.icon('info') }}<span>Your request to join <strong>{{pending.group_code}}</strong> is waiting for approval (sent {{pending.created_at|dt}}).</span></div></div>
+      {% else %}<div class="card-body">
+        <form class="form" method="post" action="/academic/group/request" id="form-join" data-persist>{{ ui.csrf_input() }}
+          <div class="field"><label for="jn-group">Request to join a group<span class="req">*</span></label>
+            <select id="jn-group" name="group_id" required {{'disabled' if not groups}}><option value="">Select group</option>{% for g in groups %}<option value="{{g.id}}">{{g.group_code}}</option>{% endfor %}</select>
+            <span class="hint">{{'An administrator reviews each request.' if groups else 'No groups exist yet.'}}</span></div>
+          <div class="form-actions left"><button class="btn primary" {{'disabled' if not groups}}>Send request</button></div>
+        </form></div>{% endif %}
+    </section>
+    {% if courses %}<section class="card"><div class="card-head"><h2 class="card-title">Group courses</h2></div>
+      <ul class="list">{% for o in courses %}<li><a class="item" href="/academic/offering/{{o.id}}"><span class="dot-icon">{{ ui.icon('book') }}</span><div class="grow"><div class="title">{{o.name}}</div><div class="desc">{{o.code}} · {{o.teacher_name or '—'}}</div></div><span class="meta">{{o.label}}</span></a></li>{% endfor %}</ul></section>{% endif %}
+  </div>
+  <div class="stack">
+    <section class="card"><div class="card-head"><h2 class="card-title">Membership history</h2></div>
+      {% if history %}<ul class="timeline">{% for h in history %}<li class="{{'origin' if h.until_at}}"><div class="t-head"><span class="strong">{{h.group_code_snapshot}}</span>{% if not h.until_at %}{{ ui.status('current','current') }}{% endif %}</div><div class="t-meta">{{h.since_at|dt}} – {{h.until_at|dt if h.until_at else 'now'}}</div></li>{% endfor %}</ul>
+      {% else %}{{ ui.empty('No groups yet', '', 'group') }}{% endif %}</section>
+    {% if requests %}<section class="card"><div class="card-head"><h2 class="card-title">Join requests</h2></div>
+      <ul class="list">{% for r in requests %}<li><div class="grow"><div class="title">{{r.group_code}}</div><div class="desc">{{r.created_at|dt}}</div></div>{{ ui.status(r.status) }}</li>{% endfor %}</ul></section>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'activity' %}{% set page_title = 'Activity log' %}
+{% set areas = [('','All'),('subject','Subjects'),('offering','Courses'),('group','Groups'),('semester','Semesters'),('assessment','Assessments'),('grade','Grades')] %}
+{% block page %}
+<div class="page-head"><div><h1 class="page-title">Activity log</h1><p class="page-sub">Every administrative and grading action, newest first.</p></div></div>
+<nav class="tabs" aria-label="Areas">{% for v,l in areas %}<a class="tab {{'active' if f.area==v}}" href="/admin/activity?area={{v}}{% if f.q %}&q={{f.q|urlencode}}{% endif %}">{{l}}</a>{% endfor %}</nav>
+<section class="card">
+  <form class="toolbar" method="get" action="/admin/activity"><input type="hidden" name="area" value="{{f.area}}">
+    <label class="search">{{ ui.icon('search') }}<span class="sr-only">Search activity</span><input name="q" value="{{f.q}}" placeholder="Search action, details or person"></label><button class="btn sm">Search</button>
+    {% if f.q %}<a class="btn ghost sm" href="/admin/activity?area={{f.area}}">{{ ui.icon('x') }}Clear</a>{% endif %}</form>
+  {% if rows %}<div class="table-wrap"><table class="table">
+    <thead><tr><th>When</th><th>Action</th><th>Details</th><th>By</th></tr></thead>
+    <tbody>{% for e in rows %}{% set area = e.action.split('.')[0] if '.' in e.action else 'account' %}<tr>
+      <td class="small muted nowrap">{{e.created_at|dt}}</td>
+      <td><span class="badge plain muted">{{area}}</span> <span class="strong">{{ (e.action.split('.',1)[1] if '.' in e.action else e.action)|replace('_',' ') }}</span></td>
+      <td class="muted">{{ e.details or e.target_name or ('#' ~ e.target_id if e.target_id else '—') }}</td>
+      <td>{{e.actor or 'system'}}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No activity found', '', 'activity') }}{% endif %}
+  {% if pageno > 1 or has_more %}<div class="card-foot"><span>Page {{pageno}}</span><span class="row">
+    {% if pageno > 1 %}<a class="btn sm" href="/admin/activity?area={{f.area}}&q={{f.q|urlencode}}&page={{pageno-1}}">{{ ui.icon('back') }}Newer</a>{% endif %}
+    {% if has_more %}<a class="btn sm" href="/admin/activity?area={{f.area}}&q={{f.q|urlencode}}&page={{pageno+1}}">Older {{ ui.icon('chevron') }}</a>{% endif %}</span></div>{% endif %}
+</section>
+{% endblock %}

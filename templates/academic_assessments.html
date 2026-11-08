@@ -1,0 +1,38 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'assessments' %}{% set page_title = 'Assessments' %}
+{% block page %}
+<div class="page-head">
+  <div><h1 class="page-title">Assessment approval</h1><p class="page-sub">Teachers can enter grades only after the definition and scoring scale are approved.</p></div>
+</div>
+<nav class="tabs" aria-label="Assessment status">{% for v,l in [('pending','Pending'),('approved','Approved'),('rejected','Rejected'),('draft','Drafts'),('all','All')] %}<a class="tab {{'active' if status==v}}" href="/academic/assessments?status={{v}}">{{l}}{% if v!='all' and counts.get(v) %} <span class="pill-count">{{counts[v]}}</span>{% endif %}</a>{% endfor %}</nav>
+<section class="card">
+  {% if status=='pending' and rows %}
+  <form id="bulk-review" method="post" action="/academic/assessment/review">{{ ui.csrf_input() }}<input type="hidden" name="next" value="/academic/assessments"></form>
+  <div class="toolbar"><span class="small muted grow">Scale for all: numeric points from 0 to the maximum, decimals allowed.</span>
+    <button class="btn sm" form="bulk-review" name="decision" value="rejected">{{ ui.icon('x') }}Reject selected</button>
+    <button class="btn primary sm" form="bulk-review" name="decision" value="approved">{{ ui.icon('check') }}Approve selected</button></div>{% endif %}
+  {% if rows %}<div class="table-wrap"><table class="table">
+    <thead><tr>{% if status=='pending' %}<th class="min"><input type="checkbox" aria-label="Select all" data-check-all=".as-check"></th>{% endif %}<th>Assessment</th><th>Course</th><th>Teacher</th><th>Type</th><th class="num">Max score</th><th>Status</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for a in rows %}<tr>
+      {% if status=='pending' %}<td class="min"><input type="checkbox" class="as-check" name="assessment_id" value="{{a.id}}" form="bulk-review" aria-label="Select {{a.title}}"></td>{% endif %}
+      <td><span class="strong">{{a.title}}</span>{% if a.review_note %}<span class="sub">Note: {{a.review_note}}</span>{% endif %}</td>
+      <td><a class="rowlink" href="/academic/offering/{{a.offering_id}}?tab=assessments">{{a.name}}</a><span class="sub">{{a.code}} · {{a.group_code_snapshot}} · {{a.label}}</span></td>
+      <td>{{a.teacher_name or '—'}}</td><td>{{a.kind|capitalize}}</td><td class="num">{{a.max_score|num}}</td>
+      <td>{{ ui.status(a.status) }}{% if a.reviewer_name %}<span class="sub">{{a.reviewer_name}} · {{a.reviewed_at|dt}}</span>{% endif %}</td>
+      <td><div class="actions">{% if a.status=='pending' %}
+        <button class="btn sm" type="button" data-open="dlg-reject" data-set-assessment_id="{{a.id}}" data-set-title="{{a.title}} · {{a.code}} {{a.group_code_snapshot}}">Reject</button>
+        <form method="post" action="/academic/assessment/review">{{ ui.csrf_input() }}<input type="hidden" name="assessment_id" value="{{a.id}}"><input type="hidden" name="decision" value="approved"><input type="hidden" name="next" value="/academic/assessments"><button class="btn primary sm">{{ ui.icon('check') }}Approve</button></form>
+        {% else %}<span class="small muted">{{a.grade_count}} grade{{'s' if a.grade_count != 1}}</span>{% endif %}</div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No ' ~ ('' if status=='all' else status) ~ ' assessments', 'Assessments that teachers submit for approval appear here.' if status=='pending' else '', 'clipboard') }}{% endif %}
+</section>
+{% endblock %}
+{% block dialogs %}
+<dialog class="modal" id="dlg-reject" aria-labelledby="dlg-rj-title">
+  <form method="post" action="/academic/assessment/review">{{ ui.csrf_input() }}<input type="hidden" name="assessment_id" value=""><input type="hidden" name="decision" value="rejected"><input type="hidden" name="next" value="/academic/assessments">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-rj-title">Reject assessment</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <p class="modal-sub" data-text="title"></p>
+    <div class="modal-body form"><div class="field"><label for="rj-note">Note for the teacher <span class="opt">(optional)</span></label><textarea id="rj-note" name="note" maxlength="500" rows="3" placeholder="e.g. Please use 25 points"></textarea></div></div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn danger-solid">Reject</button></div>
+  </form>
+</dialog>
+{% endblock %}

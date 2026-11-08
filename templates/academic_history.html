@@ -1,0 +1,19 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'child-grades' if user.role=='parent' else ('grades' if user.role=='student' else 'courses') %}{% set page_title = 'Grade history' %}
+{% block crumbs %}<a href="{{back}}">{{ 'Results' if user.role=='parent' else 'Course' }}</a><span class="sep">/</span><span class="here">Grade history</span>{% endblock %}
+{% block page %}
+<div class="page-head"><div><a class="btn ghost sm" href="{{back}}" style="margin-left:-8px;margin-bottom:6px">{{ ui.icon('back') }}Back</a><h1 class="page-title">Grade history</h1>
+  <div class="page-meta"><span class="chip">{{ ui.icon('book') }}{{grade.name}} <span class="code">{{grade.code}}</span></span><span class="chip">{{ ui.icon('clipboard') }}{{grade.title}} · {{grade.kind}}</span><span class="chip">{{ ui.icon('user') }}{{grade.student_name}}</span><span class="chip">{{ ui.icon('calendar') }}{{grade.label}}</span></div></div></div>
+<div class="grid main-side">
+  <section class="card"><div class="card-head"><h2 class="card-title">Changes <span class="count">{{rows|length}}</span></h2></div>
+    <ul class="timeline">
+      {% for r in rows %}<li><div class="t-head"><span class="t-change"><s>{{r.old_score|num}}</s> → {{r.new_score|num}}</span><span class="muted small">/ {{grade.max_score|num}}</span></div>
+        <div class="t-meta">{{r.editor_name or '—'}} · {{r.edited_at|dt}}</div>{% if r.reason %}<div class="t-reason">{{r.reason}}</div>{% endif %}</li>{% endfor %}
+      <li class="origin"><div class="t-head"><span class="t-change">{{(rows[-1].old_score if rows else grade.score)|num}}</span><span class="badge plain muted">Original entry</span></div><div class="t-meta">{{grade.creator_name or '—'}} · {{grade.created_at|dt}}</div></li>
+    </ul></section>
+  <section class="card"><div class="card-head"><h2 class="card-title">Current grade</h2></div>
+    <div class="card-body"><div style="font-size:30px;font-weight:700;letter-spacing:-.03em">{{grade.score|num}} <span class="muted" style="font-size:16px;font-weight:500">/ {{grade.max_score|num}}</span></div>
+      <div class="mt-12">{{ ui.score(grade.score, grade.max_score) }}</div>
+      <dl class="kv mt-18"><dt>Version</dt><dd>{{grade.version}}</dd><dt>Last change</dt><dd>{{grade.updated_at|dt}}</dd></dl></div></section>
+</div>
+{% endblock %}

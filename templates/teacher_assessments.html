@@ -1,0 +1,14 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'assessments' %}{% set page_title = 'Assessments' %}
+{% block page %}
+<div class="page-head"><div><h1 class="page-title">Assessments</h1><p class="page-sub">Across all your courses. New assessments need administrator approval before grading.</p></div>
+  {% if courses %}<div class="page-actions"><details class="menu"><summary class="btn primary">{{ ui.icon('plus') }}New assessment</summary><div class="menu-pop">{% for o in courses %}<a class="menu-item" href="/academic/offering/{{o.id}}?tab=assessments">{{ ui.icon('book') }}{{o.code}} · {{o.group_code_snapshot}}</a>{% endfor %}</div></details></div>{% endif %}</div>
+<nav class="tabs" aria-label="Status">{% for v,l in [('all','All'),('pending','Pending'),('approved','Approved'),('rejected','Rejected'),('draft','Drafts')] %}<a class="tab {{'active' if status==v}}" href="/academic/teacher/assessments?status={{v}}">{{l}} <span class="pill-count">{{ total if v=='all' else counts.get(v,0) }}</span></a>{% endfor %}</nav>
+<section class="card">
+  {% if rows %}<div class="table-wrap"><table class="table"><thead><tr><th>Assessment</th><th>Course</th><th>Type</th><th class="num">Max score</th><th>Approval</th><th class="num">Grades</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead><tbody>
+    {% for a in rows %}<tr><td><span class="strong">{{a.title}}</span>{% if a.status=='rejected' and a.review_note %}<span class="sub" style="color:var(--bad)">{{a.review_note}}</span>{% endif %}</td>
+      <td>{{a.name}}<span class="sub">{{a.code}} · {{a.group_code_snapshot}} · {{a.label}}</span></td><td>{{a.kind|capitalize}}</td><td class="num">{{a.max_score|num}}</td><td>{{ ui.status(a.status) }}</td><td class="num">{{a.grade_count}}</td>
+      <td><div class="actions">{% if a.status=='approved' %}<a class="btn sm" href="/academic/offering/{{a.offering_id}}?assessment={{a.id}}#grading">{{ ui.icon('table') }}Grades</a>{% else %}<a class="btn ghost sm" href="/academic/offering/{{a.offering_id}}?tab=assessments">Open</a>{% endif %}</div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No assessments' if status=='all' else 'Nothing here', 'Open a course and create an assignment or exam.' if status=='all' else '', 'clipboard') }}{% endif %}
+</section>
+{% endblock %}

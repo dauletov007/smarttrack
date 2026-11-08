@@ -1,0 +1,175 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set o = offering %}
+{% set nav_active = 'courses' %}{% set page_title = o.subject_name %}
+{% set base = '/academic/offering/%d' % o.id %}
+{% block crumbs %}<a href="{{'/academic/courses' if user.role=='admin' else '/academic'}}">{{'Courses' if user.role=='admin' else 'My Courses'}}</a><span class="sep">/</span><span class="here">{{o.subject_code}} · {{o.group_code_snapshot}}</span>{% endblock %}
+{% block page %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{o.subject_name}}</h1>
+    <div class="page-meta">
+      <span class="chip"><span class="code" style="background:none;padding:0">{{o.subject_code}}</span></span>
+      <span class="chip">{{ ui.icon('users') }}Group <strong>{{o.group_code_snapshot}}</strong>{% if o.group_deleted_at %}&nbsp;(deleted){% endif %}</span>
+      <span class="chip">{{ ui.icon('calendar') }}{{o.label}}&nbsp;{{ ui.semester_badge(o.semester_status) }}</span>
+      <span class="chip">{{ ui.icon('teacher') }}{{o.teacher_name or 'No teacher'}}</span>
+      {% if o.status=='archived' %}{{ ui.status('archived','course archived') }}{% endif %}
+    </div>
+  </div>
+  {% if staff %}<div class="page-actions">
+    {% if can_define %}<button class="btn" type="button" data-open="dlg-assessment" data-set-kind="assignment">{{ ui.icon('plus') }}Assignment</button><button class="btn" type="button" data-open="dlg-assessment" data-set-kind="exam">{{ ui.icon('plus') }}Exam</button>{% endif %}
+    {% if user.role=='admin' %}<a class="btn" href="/academic/courses?q={{o.subject_code|urlencode}}">{{ ui.icon('swap') }}Manage in Courses</a>{% endif %}
+  </div>{% endif %}
+</div>
+{% if readonly_reason and (staff or own) %}<div class="banner">{{ ui.icon('lock') }}<span>{{readonly_reason}}</span></div>{% endif %}
+
+{% if not staff %}
+{# ---------------- Student view ---------------- #}
+{% set graded = own|selectattr('grade_id')|list %}
+<nav class="tabs" aria-label="Course sections">
+  <a class="tab {{'active' if tab=='overview'}}" href="{{base}}">Overview</a>
+  <a class="tab {{'active' if tab=='assessments'}}" href="{{base}}?tab=assessments">Assessments <span class="pill-count">{{own|length}}</span></a>
+  <a class="tab {{'active' if tab=='grades'}}" href="{{base}}?tab=grades">Grades <span class="pill-count">{{graded|length}}</span></a>
+</nav>
+{% if tab=='overview' %}
+<div class="grid main-side">
+  <section class="card"><div class="card-head"><h2 class="card-title">About this course</h2></div>
+    <div class="card-body"><dl class="kv">
+      <dt>Subject</dt><dd>{{o.subject_name}}</dd><dt>Code</dt><dd>{{o.subject_code}}</dd><dt>Teacher</dt><dd>{{o.teacher_name or '—'}}</dd>
+      <dt>Group</dt><dd>{{o.group_code_snapshot}}</dd><dt>Semester</dt><dd>{{o.label}} · {{o.start_date.strftime('%d %b')}} – {{o.end_date.strftime('%d %b %Y')}}</dd>
+      {% if o.description %}<dt>Description</dt><dd style="font-weight:400">{{o.description}}</dd>{% endif %}</dl></div></section>
+  <section class="card"><div class="card-head"><h2 class="card-title">Progress</h2></div>
+    <div class="card-body"><div class="stats" style="grid-template-columns:1fr 1fr;margin:0">
+      <a class="stat" href="{{base}}?tab=assessments"><span class="stat-label">Assessments</span><span class="stat-value">{{own|length}}</span></a>
+      <a class="stat" href="{{base}}?tab=grades"><span class="stat-label">Graded</span><span class="stat-value">{{graded|length}}</span></a></div></div></section>
+</div>
+{% elif tab=='assessments' %}
+<section class="card">{% if own %}<div class="table-wrap"><table class="table"><thead><tr><th>Assessment</th><th>Type</th><th class="num">Max score</th><th>Status</th></tr></thead><tbody>
+  {% for a in own %}<tr><td class="strong">{{a.title}}</td><td>{{a.kind|capitalize}}</td><td class="num">{{a.max_score|num}}</td><td>{% if a.grade_id %}{{ ui.status('approved','graded') }}{% else %}{{ ui.status('draft','not graded yet') }}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No assessments yet', 'Your teacher has not published any assessments.', 'clipboard') }}{% endif %}</section>
+{% else %}
+<section class="card">{% if own %}<div class="table-wrap"><table class="table"><thead><tr><th>Assessment</th><th>Type</th><th>Date</th><th class="num">Score</th><th class="num"><span class="sr-only">History</span></th></tr></thead><tbody>
+  {% for a in own %}<tr><td class="strong">{{a.title}}</td><td>{{a.kind|capitalize}}</td><td class="small muted">{{a.updated_at|dt if a.grade_id else '—'}}</td><td class="num">{{ ui.score(a.score if a.grade_id else none, a.max_score) }}</td>
+    <td class="num">{% if a.grade_id and a.revisions %}<a class="btn ghost sm" href="/academic/grade/{{a.grade_id}}/history">{{ ui.icon('history') }}History</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No grades yet', '', 'chart') }}{% endif %}</section>
+{% endif %}
+
+{% else %}
+{# ---------------- Teacher / admin view ---------------- #}
+<nav class="tabs" aria-label="Course sections">
+  <a class="tab {{'active' if tab=='students'}}" href="{{base}}?tab=students">{{ ui.icon('users') }}Students <span class="pill-count">{{students|length}}</span></a>
+  <a class="tab {{'active' if tab=='assessments'}}" href="{{base}}?tab=assessments">{{ ui.icon('clipboard') }}Assessments <span class="pill-count">{{assessments|length}}</span></a>
+  <a class="tab {{'active' if tab=='grades'}}" href="{{base}}?tab=grades">{{ ui.icon('table') }}Grades</a>
+</nav>
+
+{% if tab=='students' %}
+<section class="card">
+  <div class="toolbar"><label class="search">{{ ui.icon('search') }}<span class="sr-only">Search students</span><input placeholder="Search students" data-filter="#roster"></label><span class="grow"></span><span class="small muted">Group membership is managed by administrators.</span></div>
+  {% if students or former %}<div class="table-wrap"><table class="table" id="roster"><thead><tr><th>Student</th><th>Email</th><th>Academic group</th></tr></thead><tbody>
+    {% for s in students %}<tr data-row><td><div class="row"><span class="avatar">{{ ui.initials(s.full_name) }}</span><span class="strong">{{s.full_name}}</span></div></td><td class="muted">{{s.email}}</td><td>{{o.group_code_snapshot}}</td></tr>{% endfor %}
+    {% for s in former %}<tr data-row class="muted"><td><div class="row"><span class="avatar" style="background:var(--hover);color:var(--text-2)">{{ ui.initials(s.full_name) }}</span><span>{{s.full_name}}</span></div></td><td>{{s.email}}</td><td>{{ ui.status('archived','left the group') }} <span class="small">grades kept</span></td></tr>{% endfor %}
+    <tr data-no-match hidden><td colspan="3" class="empty-cell">{{ ui.empty('No matching students', '', 'search') }}</td></tr></tbody></table></div>
+  {% else %}{{ ui.empty('No students in ' ~ o.group_code_snapshot, 'Students appear here when an administrator enrols them in the group.', 'users') }}{% endif %}
+</section>
+
+{% elif tab=='assessments' %}
+<section class="card">
+  {% if assessments %}<div class="table-wrap"><table class="table"><thead><tr><th>Assessment</th><th>Type</th><th class="num">Max score</th><th>Approval</th><th class="num">Grades</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead><tbody>
+  {% for a in assessments %}<tr>
+    <td><span class="strong">{{a.title}}</span>{% if a.status=='rejected' and a.review_note %}<span class="sub" style="color:var(--bad)">Rejected: {{a.review_note}}</span>{% elif a.reviewer_name %}<span class="sub">Reviewed by {{a.reviewer_name}}</span>{% endif %}</td>
+    <td>{{a.kind|capitalize}}</td><td class="num">{{a.max_score|num}}</td><td>{{ ui.status(a.status) }}</td><td class="num">{{a.grade_count}}</td>
+    <td><div class="actions">
+      {% if a.status=='approved' %}<a class="btn sm {{'primary' if can_grade else ''}}" href="{{base}}?assessment={{a.id}}#grading">{{ ui.icon('table') }}{{'Enter grades' if can_grade else 'View grades'}}</a>
+      {% elif user.role=='admin' and a.status=='pending' %}<form method="post" action="/academic/assessment/review">{{ ui.csrf_input() }}<input type="hidden" name="assessment_id" value="{{a.id}}"><input type="hidden" name="decision" value="approved"><input type="hidden" name="next" value="{{base}}?tab=assessments"><button class="btn primary sm">{{ ui.icon('check') }}Approve</button></form>
+      {% elif can_define %}<button class="btn sm" type="button" data-open="dlg-edit-assessment" data-set-assessment_id="{{a.id}}" data-set-kind="{{a.kind}}" data-set-title="{{a.title}}" data-set-max_score="{{a.max_score|num}}">{{ ui.icon('edit') }}Edit</button>{% endif %}
+    </div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No assessments yet', 'Create an assignment or exam. It is sent to an administrator for approval before grading.' if can_define else '', 'clipboard', 'New assessment' if can_define else None, 'dlg-assessment' if can_define else None) }}{% endif %}
+  <div class="card-foot"><span>Scale: numeric points from 0 to the maximum, decimals allowed.</span>{% if can_define and assessments %}<button class="btn sm" type="button" data-open="dlg-assessment">{{ ui.icon('plus') }}New assessment</button>{% endif %}</div>
+</section>
+
+{% else %}
+{% if approved %}
+<div class="between mb-18"><div class="segmented" role="tablist" aria-label="Assessment">
+  <a href="{{base}}?tab=grades" class="{{'active' if not selected}}">Overview</a>
+  {% for a in approved %}<a href="{{base}}?assessment={{a.id}}#grading" class="{{'active' if selected and selected.id==a.id}}">{{a.title}}</a>{% endfor %}</div></div>
+{% endif %}
+{% if selected %}
+{% set ns = namespace(open=0) %}{% for s in students %}{% if not gmap.get(selected.id ~ ':' ~ s.id) %}{% set ns.open = ns.open + 1 %}{% endif %}{% endfor %}
+<section class="card" id="grading">
+  <div class="card-head"><h2 class="card-title">{{selected.title}} <span class="count">{{selected.kind}} · max {{selected.max_score|num}}</span></h2>
+    {% if can_grade and ns.open %}<span class="small muted">{{ns.open}} without a grade</span>{% endif %}</div>
+  {% if can_grade %}<form id="grade-entry" method="post" action="/academic/grades">{{ ui.csrf_input() }}<input type="hidden" name="assessment_id" value="{{selected.id}}"></form>{% endif %}
+  <div class="table-wrap"><table class="table"><thead><tr><th>Student</th><th>Assessment</th><th class="num">Score</th><th class="num">Max</th><th>Last change</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead><tbody>
+  {% for s in students + former %}{% set g = gmap.get(selected.id ~ ':' ~ s.id) %}{% set is_former = s in former %}
+    <tr class="{{'muted' if is_former}}"><td><span class="strong">{{s.full_name}}</span>{% if is_former %}<span class="sub">left the group</span>{% endif %}</td><td class="muted">{{selected.title}}</td>
+    <td class="num">{% if g %}<span class="score-val">{{g.score|num}}</span>{% elif can_grade and not is_former %}<input type="hidden" name="student_id" value="{{s.id}}" form="grade-entry"><input class="input sm score" name="score" inputmode="decimal" placeholder="0–{{selected.max_score|num}}" aria-label="Score for {{s.full_name}}" form="grade-entry">{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td class="num score-max">{{selected.max_score|num}}</td>
+    <td class="small muted">{% if g %}{{g.updated_at|dt}}{% if g.revisions %} · edited {{g.revisions}}×{% endif %}{% endif %}</td>
+    <td><div class="actions">{% if g %}
+      {% if can_grade %}<button class="btn sm" type="button" data-open="dlg-grade" data-set-grade_id="{{g.id}}" data-set-version="{{g.version}}" data-set-score="{{g.score|num}}" data-set-student="{{s.full_name}}" data-set-current="{{g.score|num}} / {{selected.max_score|num}}">{{ ui.icon('edit') }}Edit grade</button>{% endif %}
+      <a class="btn ghost sm icon-only" href="/academic/grade/{{g.id}}/history" title="Grade history" aria-label="Grade history for {{s.full_name}}">{{ ui.icon('history') }}</a>{% endif %}</div></td></tr>
+  {% else %}<tr><td colspan="6" class="empty-cell">{{ ui.empty('No students on the roster', '', 'users') }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if can_grade and ns.open %}<div class="card-foot"><span>Empty fields are skipped. Saved grades are changed with Edit grade.</span><button class="btn primary" form="grade-entry">{{ ui.icon('check') }}Save grades</button></div>{% endif %}
+</section>
+{% else %}
+<section class="card">
+  <div class="card-head"><h2 class="card-title">Gradebook</h2>{% if approved %}<span class="small muted">{{'Choose an assessment above to enter or edit grades.' if can_grade else 'Choose an assessment above to see its grades.'}}</span>{% endif %}</div>
+  {% if approved and (students or former) %}<div class="table-wrap"><table class="table"><thead><tr><th>Student</th>{% for a in approved %}<th class="num"><a href="{{base}}?assessment={{a.id}}#grading">{{a.title}}</a><span class="sub">/ {{a.max_score|num}}</span></th>{% endfor %}</tr></thead><tbody>
+    {% for s in students + former %}<tr class="{{'muted' if s in former}}"><td class="strong">{{s.full_name}}{% if s in former %}<span class="sub">left the group</span>{% endif %}</td>{% for a in approved %}{% set g = gmap.get(a.id ~ ':' ~ s.id) %}<td class="num">{% if g %}<a class="score-val" href="/academic/grade/{{g.id}}/history" title="History">{{g.score|num}}</a>{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+  {% elif not approved %}{{ ui.empty('No approved assessments yet', 'Grades can be entered once an administrator approves an assessment.', 'clipboard', ('Go to assessments', base ~ '?tab=assessments')) }}
+  {% else %}{{ ui.empty('No students', '', 'users') }}{% endif %}
+</section>
+{% endif %}
+{% endif %}
+
+{% if user.role=='admin' and teacher_history %}<section class="card mt-18"><div class="card-head"><h2 class="card-title">Teacher history</h2></div>
+  <ul class="list">{% for h in teacher_history %}<li><span class="dot-icon">{{ ui.icon('swap') }}</span><div class="grow"><div class="title">{{h.old_name or '—'}} → {{h.new_name or '—'}}</div>{% if h.reason %}<div class="desc">{{h.reason}}</div>{% endif %}</div><span class="meta">{{h.changed_at|dt}}</span></li>{% endfor %}</ul></section>{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block dialogs %}{% if staff %}
+{% if can_define %}
+<dialog class="modal" id="dlg-assessment" aria-labelledby="dlg-as-title">
+  <form method="post" action="/academic/assessment" id="form-assessment" data-persist>{{ ui.csrf_input() }}<input type="hidden" name="offering_id" value="{{o.id}}">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-as-title">New assessment</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <p class="modal-sub">{{o.subject_code}} · {{o.group_code_snapshot}} · {{o.label}}</p>
+    <div class="modal-body form">
+      <div class="form-row">
+        <div class="field"><label for="na-kind">Type<span class="req">*</span></label><select id="na-kind" name="kind" required><option value="assignment">Assignment</option><option value="exam">Exam</option></select></div>
+        <div class="field"><label for="na-max">Maximum score<span class="req">*</span></label><input id="na-max" name="max_score" inputmode="decimal" placeholder="100" required></div>
+      </div>
+      <div class="field"><label for="na-title">Title<span class="req">*</span></label><input id="na-title" name="title" maxlength="160" placeholder="Midterm exam" required></div>
+      <p class="hint">Scale: points from 0 to the maximum (decimals allowed). An administrator approves it before grading.</p>
+    </div>
+    <div class="modal-foot"><button class="btn" name="submit" value="0">Save draft</button><button class="btn primary" name="submit" value="1">Submit for approval</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="dlg-edit-assessment" aria-labelledby="dlg-ea-title">
+  <form method="post" action="/academic/assessment/update" id="form-edit-assessment" data-persist>{{ ui.csrf_input() }}<input type="hidden" name="assessment_id" value="">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-ea-title">Edit assessment</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      <div class="form-row">
+        <div class="field"><label for="ea-kind">Type</label><select id="ea-kind" name="kind"><option value="assignment">Assignment</option><option value="exam">Exam</option></select></div>
+        <div class="field"><label for="ea-max">Maximum score<span class="req">*</span></label><input id="ea-max" name="max_score" inputmode="decimal" required></div>
+      </div>
+      <div class="field"><label for="ea-title">Title<span class="req">*</span></label><input id="ea-title" name="title" maxlength="160" required></div>
+    </div>
+    <div class="modal-foot"><button class="btn" name="submit" value="0">Save draft</button><button class="btn primary" name="submit" value="1">Submit for approval</button></div>
+  </form>
+</dialog>
+{% endif %}
+{% if can_grade and selected %}
+<dialog class="modal" id="dlg-grade" aria-labelledby="dlg-gr-title">
+  <form method="post" action="/academic/grade/edit" id="form-grade" data-persist>{{ ui.csrf_input() }}<input type="hidden" name="grade_id" value=""><input type="hidden" name="version" value="">
+    <div class="modal-head"><h2 class="modal-title" id="dlg-gr-title">Edit grade</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <div class="modal-body form">
+      <dl class="modal-summary"><dt>Student</dt><dd data-text="student">—</dd><dt>Assessment</dt><dd>{{selected.title}}</dd><dt>Current grade</dt><dd data-text="current">—</dd></dl>
+      <div class="field"><label for="gr-score">New grade (0–{{selected.max_score|num}})<span class="req">*</span></label><input id="gr-score" name="score" inputmode="decimal" required></div>
+      <div class="field"><label for="gr-reason">Reason <span class="opt">(optional)</span></label><input id="gr-reason" name="reason" maxlength="500" placeholder="e.g. Re-marked question 3"></div>
+      <p class="hint">The previous value is kept in the grade history.</p>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Save</button></div>
+  </form>
+</dialog>
+{% endif %}
+{% endif %}{% endblock %}

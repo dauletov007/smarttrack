@@ -1,0 +1,10 @@
+{% extends 'auth_layout.html' %}{% import '_ui.html' as ui with context %}{% set auth_icon = 'key' %}{% set page_title = 'Forgot password' %}
+{% block auth_title %}{{'Восстановление доступа' if lang=='ru' else 'Reset your password'}}{% endblock %}
+{% block auth_sub %}{{'Отправим одноразовый код на вашу почту.' if lang=='ru' else 'We will send a one-time code to your email.'}}{% endblock %}
+{% block auth_body %}
+<form class="form" method="post" action="/forgot">{{ ui.csrf_input() }}
+  <div class="field"><label for="fg-email">Email</label><input id="fg-email" name="email" type="email" autocomplete="email" required autofocus></div>
+  <button class="btn primary lg block">{{'Отправить код' if lang=='ru' else 'Send reset code'}}</button>
+</form>
+{% endblock %}
+{% block auth_foot %}<div class="auth-foot"><a class="textlink" href="/login">{{'Вернуться ко входу' if lang=='ru' else 'Back to log in'}}</a></div>{% endblock %}

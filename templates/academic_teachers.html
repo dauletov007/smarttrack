@@ -1,0 +1,57 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'teachers' %}{% set page_title = 'Teachers' %}
+{% block page %}
+<div class="page-head">
+  <div><h1 class="page-title">Teachers</h1><p class="page-sub">Workload counts open, non-archived courses.</p></div>
+  <div class="page-actions"><button class="btn" type="button" data-open="dlg-reassign" {{'disabled' if approved|length < 2}}>{{ ui.icon('swap') }}Replace teacher</button></div>
+</div>
+<div class="stack">
+<section class="card">
+  <div class="toolbar"><label class="search">{{ ui.icon('search') }}<span class="sr-only">Search teachers</span><input placeholder="Search teachers" data-filter="#teachers-table"></label><span class="grow"></span><span class="small muted">{{approved|length}} approved</span></div>
+  {% if approved %}<div class="table-wrap"><table class="table" id="teachers-table">
+    <thead><tr><th>Teacher</th><th>Status</th><th>Assigned courses</th><th class="num">Groups</th><th class="num">Workload</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for t in approved %}{% set mine = by_teacher.get(t.id, []) %}<tr data-row>
+      <td><div class="row"><span class="avatar">{{ ui.initials(t.full_name) }}</span><span><span class="strong">{{t.full_name}}</span><span class="sub">{{t.email}}</span></span></div></td>
+      <td>{{ ui.status('approved') }}</td>
+      <td>{% if mine %}<div class="row" style="gap:4px">{% for o in mine[:3] %}<a class="chip" href="/academic/offering/{{o.id}}">{{o.code}} · {{o.group_code_snapshot}}</a>{% endfor %}{% if mine|length > 3 %}<span class="small muted">+{{mine|length - 3}}</span>{% endif %}</div>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td class="num">{{t.active_groups}}</td>
+      <td class="num"><span class="strong">{{t.active_courses}}</span> <span class="muted small">courses · {{t.students}} students</span></td>
+      <td><div class="actions">{% if mine %}<a class="btn ghost sm" href="/academic/courses?teacher={{t.id}}">Courses</a>{% endif %}</div></td></tr>{% endfor %}
+      <tr data-no-match hidden><td colspan="6" class="empty-cell">{{ ui.empty('No matching teachers', '', 'search') }}</td></tr></tbody></table></div>
+  {% else %}{{ ui.empty('No approved teachers', 'Teachers register themselves; approve them below after checking their identity.', 'teacher') }}{% endif %}
+</section>
+<section class="card" id="pending">
+  <div class="card-head"><h2 class="card-title">Awaiting approval & inactive <span class="count">{{others|length}}</span></h2></div>
+  {% if others %}<div class="table-wrap"><table class="table">
+    <thead><tr><th>Teacher</th><th>Status</th><th class="num">Courses</th><th class="num"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>{% for t in others %}<tr>
+      <td><span class="strong">{{t.full_name}}</span><span class="sub">{{t.email}}</span></td>
+      <td>{% if t.blocked %}{{ ui.status('blocked') }}{% elif not t.verified %}{{ ui.status('unverified','email unverified') }}{% else %}{{ ui.status(t.teacher_status) }}{% endif %}</td>
+      <td class="num">{{by_teacher.get(t.id, [])|length}}</td>
+      <td><div class="actions">
+        {% if t.verified and not t.blocked %}<form method="post" action="/admin/action" data-confirm="Approve {{t.full_name}} as a teacher? Check their identity first." data-confirm-label="Approve" data-confirm-safe>{{ ui.csrf_input() }}<input type="hidden" name="target_id" value="{{t.id}}"><input type="hidden" name="action" value="approve_teacher"><input type="hidden" name="next" value="/academic/teachers"><button class="btn primary sm">{{ ui.icon('check') }}Approve</button></form>{% endif %}
+        <a class="btn ghost sm" href="/admin/users?q={{t.email|urlencode}}">Account</a>
+      </div></td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('Nobody is waiting', 'New teacher registrations appear here after email verification.', 'check') }}{% endif %}
+</section>
+<section class="card">
+  <div class="card-head"><h2 class="card-title">Recent replacements</h2></div>
+  {% if history %}<div class="table-wrap"><table class="table"><thead><tr><th>Course</th><th>From</th><th>To</th><th>Reason</th><th>Date</th></tr></thead><tbody>
+    {% for h in history %}<tr><td><span class="code">{{h.code}}</span> {{h.group_code_snapshot}}</td><td>{{h.old_name or '—'}}</td><td class="strong">{{h.new_name}}</td><td class="muted">{{h.reason or '—'}}</td><td class="small muted">{{h.changed_at|dt}}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}{{ ui.empty('No replacements yet', '', 'swap') }}{% endif %}
+</section>
+</div>
+{% endblock %}
+{% block dialogs %}
+<dialog class="modal" id="dlg-reassign" aria-labelledby="dlg-ra-title">
+  <form method="post" action="/academic/teacher/reassign" id="form-reassign" data-persist data-confirm="Move all open courses to the new teacher? Grades are kept and the previous teacher loses edit access." data-confirm-label="Reassign" data-confirm-safe>{{ ui.csrf_input() }}
+    <div class="modal-head"><h2 class="modal-title" id="dlg-ra-title">Replace teacher</h2><button class="btn ghost sm icon-only" type="button" data-close aria-label="Close">{{ ui.icon('x') }}</button></div>
+    <p class="modal-sub">Moves every open course of one teacher to another. For a single course use Courses → ⋯ → Replace teacher.</p>
+    <div class="modal-body form">
+      <div class="field"><label for="ra-from">Current teacher<span class="req">*</span></label><select id="ra-from" name="from_teacher_id" required><option value="">Select teacher</option>{% for t in approved + others %}{% if by_teacher.get(t.id) %}<option value="{{t.id}}">{{t.full_name}} ({{by_teacher[t.id]|length}} courses)</option>{% endif %}{% endfor %}</select></div>
+      <div class="field"><label for="ra-to">New teacher<span class="req">*</span></label><select id="ra-to" name="to_teacher_id" required><option value="">Select teacher</option>{% for t in approved %}<option value="{{t.id}}">{{t.full_name}}</option>{% endfor %}</select></div>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary">Reassign courses</button></div>
+  </form>
+</dialog>
+{% endblock %}

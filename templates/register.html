@@ -1,0 +1,17 @@
+{% extends 'auth_layout.html' %}{% import '_ui.html' as ui with context %}{% set auth_icon = 'user' %}{% set page_title = 'Create account' %}
+{% block auth_title %}{{'Создать аккаунт' if lang=='ru' else 'Create your account'}}{% endblock %}
+{% block auth_sub %}{{'Только необходимые данные.' if lang=='ru' else 'Just the essentials. You can complete your profile later.'}}{% endblock %}
+{% block auth_body %}
+<form class="form" method="post" action="/register" id="form-register" data-persist>{{ ui.csrf_input() }}
+  <div class="field"><label for="rg-role">{{'Я регистрируюсь как' if lang=='ru' else 'I am joining as'}}<span class="req">*</span></label>
+    <select id="rg-role" name="role" required onchange="document.getElementById('invite-field').hidden=this.value!=='parent';document.getElementById('rg-invite').required=this.value==='parent';document.getElementById('teacher-note').hidden=this.value!=='teacher'">
+      <option value="student">Student / Студент</option><option value="teacher">Teacher / Преподаватель</option><option value="parent">Parent / Родитель</option></select></div>
+  <div class="field"><label for="rg-name">{{'Имя и фамилия' if lang=='ru' else 'Full name'}}<span class="req">*</span></label><input id="rg-name" name="full_name" required minlength="2" maxlength="120" autocomplete="name" placeholder="Alex Morgan"></div>
+  <div class="field"><label for="rg-email">Email<span class="req">*</span></label><input id="rg-email" name="email" required type="email" autocomplete="email" placeholder="you@example.com"></div>
+  <div class="field"><label for="rg-pass">{{'Пароль' if lang=='ru' else 'Password'}}<span class="req">*</span></label><input id="rg-pass" name="password" type="password" required minlength="8" autocomplete="new-password"><span class="hint">{{'Минимум 8 символов' if lang=='ru' else 'At least 8 characters'}}</span></div>
+  <div class="field" id="invite-field" hidden><label for="rg-invite">{{'Код приглашения студента' if lang=='ru' else 'Student invitation code'}}<span class="req">*</span></label><input id="rg-invite" name="invite_code" placeholder="ST-..." autocomplete="off"><span class="hint">{{'Код создаёт студент в своём кабинете.' if lang=='ru' else 'Your student creates this code in their SmartTrack overview.'}}</span></div>
+  <div class="banner info" id="teacher-note" hidden style="margin:0">{{ ui.icon('info') }}<span>{{'Для преподавателей требуется одобрение администратора.' if lang=='ru' else 'Teachers also require approval from the administrator.'}}</span></div>
+  <button class="btn primary lg block">{{'Зарегистрироваться' if lang=='ru' else 'Create account'}}</button>
+</form>
+{% endblock %}
+{% block auth_foot %}<div class="auth-foot">{{'Уже есть аккаунт?' if lang=='ru' else 'Already registered?'}} <a class="textlink" href="/login">{{'Войти' if lang=='ru' else 'Log in'}}</a></div>{% endblock %}

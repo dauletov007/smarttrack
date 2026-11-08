@@ -1,0 +1,12 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'profile' %}{% set page_title = 'Verify new email' %}
+{% block crumbs %}<a href="/profile">Profile</a><span class="sep">/</span><span class="here">Verify new email</span>{% endblock %}
+{% block page %}
+<section class="card" style="max-width:440px;margin:24px auto 0"><div class="card-body">
+  <div class="auth-icon">{{ ui.icon('mail') }}</div><h1 class="auth-title">{{'Новый адрес' if lang=='ru' else 'Verify your new email'}}</h1>
+  <p class="auth-sub">Enter the 6-digit code we sent to the new address.</p>
+  <form class="form" action="/change-email" method="post">{{ ui.csrf_input() }}
+    <div class="field"><label for="ce-code">{{'Код из письма' if lang=='ru' else 'Email code'}}</label><input id="ce-code" class="code-input" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required autofocus></div>
+    <div class="form-actions"><a class="btn" href="/profile">Cancel</a><button class="btn primary">Confirm</button></div></form>
+</div></section>
+{% endblock %}

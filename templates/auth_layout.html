@@ -1,0 +1,11 @@
+{% extends 'public.html' %}
+{% block public %}
+<section class="auth"><div class="auth-card">
+  <div class="auth-icon">{{ ui.icon(auth_icon|default('user')) }}</div>
+  <h1 class="auth-title">{% block auth_title %}{% endblock %}</h1>
+  <p class="auth-sub">{% block auth_sub %}{% endblock %}</p>
+  {% include '_flash.html' %}
+  {% block auth_body %}{% endblock %}
+  {% block auth_foot %}{% endblock %}
+</div></section>
+{% endblock %}

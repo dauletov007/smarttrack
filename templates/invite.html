@@ -1,0 +1,11 @@
+{% extends 'app.html' %}{% import '_ui.html' as ui with context %}
+{% set nav_active = 'overview' %}{% set page_title = 'Parent invitation' %}
+{% block page %}
+<section class="card" style="max-width:500px;margin:24px auto 0"><div class="card-body">
+  <div class="auth-icon">{{ ui.icon('link') }}</div><h1 class="auth-title">{{'Пригласите родителя' if lang=='ru' else 'Invite your parent'}}</h1>
+  <p class="auth-sub">{{'Передайте этот код родителю. Он действует 7 дней и может быть использован один раз.' if lang=='ru' else 'Share this code privately. It is valid for 7 days and can be used once.'}}</p>
+  <div class="invite-code" id="invite-code">{{invite_code}}</div>
+  <p class="hint">The parent selects “Parent” when registering and enters this code. It is shown only once.</p>
+  <div class="form-actions mt-18"><button class="btn" type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('invite-code').textContent.trim()).then(()=>{this.textContent='Copied'})">Copy code</button><a class="btn primary" href="/dashboard">{{'Вернуться' if lang=='ru' else 'Done'}}</a></div>
+</div></section>
+{% endblock %}
